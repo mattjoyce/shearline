@@ -232,7 +232,15 @@ type Policy struct { /* plan, frozen standing base, rule-set IDs */ }
 // may add rules to any relation, allow/3 included, and the only promise that survives
 // an arbitrary set is deny by absence. Any error is the consumer's to fix before
 // serving.
-func Load(standing []datalog.Fact, sets ...datalog.RuleSet) (Policy, error)
+// Config is everything a Policy is built from. Context lists every key a request may
+// carry, with its kind; a request with any other key, or a declared key of another
+// kind, is ErrRequest, and a rule set that names an undeclared key fails at Load.
+type Config struct {
+    Standing []datalog.Fact
+    Sets     []datalog.RuleSet
+    Context  map[string]datalog.Kind
+}
+func Load(cfg Config) (Policy, error)
 
 // Decide is total: nil error with Allow=false is deny by absence; a non-nil error is
 // also a deny, and Decision.Allow is false whenever err != nil. A request with an
@@ -359,10 +367,14 @@ above.
    both render as text and compact JSON, so a consumer can log or store a receipt without
    learning the AST. The value is partly future state; the cost is one engine walk per refusal.
 
+4. **Context keys are declared or refused (2026-10-22).** Matt: "code in the future is mostly AI
+   generated, therefore be explicit." `Load` takes `Config{Standing, Sets, Context map[string]Kind}`.
+   A request key that is undeclared, or declared with another kind, is `ErrRequest`; a policy that
+   declares no keys accepts no context. The declaration is also the schema check on `context/2`,
+   so a consumer rule naming an undeclared key or comparing a declared key with a constant of the
+   wrong kind fails at `Load`. Nothing is inferred and there is no default-permissive state.
+
 ## Open, for Matt
 
-1. Typed context keys (spec open question 4): a deny rule comparing a context value of the wrong
-   kind silently does not fire, since mismatched kinds compare false. Declaring kinds per key
-   would catch it at the request; today the rule must guard the kind itself.
-2. Whether `Permitted` should also exist per resource: "who may read R" (a `principals/3`
+1. Whether `Permitted` should also exist per resource: "who may read R" (a `principals/3`
    relation). Cheap to add once Ductile's real requests are written down.
