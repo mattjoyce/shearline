@@ -286,21 +286,25 @@ Luminary panel (Hickey × Armstrong, Ousterhout × Liskov) before any code:
 `docs/reviews/luminary-design-2026-10-22/`. The collation lists each finding and where it landed
 above.
 
+## Decided with Matt
+
+1. **Resource matching (2026-10-22).** Grants stay plain string prefixes and a resource name is an
+   opaque string. The consumer ends a prefix with its separator and makes names canonical before
+   Decide. No `glob/2`, no canonicalisation in `policy`. If a consumer shows segmented names, add
+   `under(Sep, Pat, R)`: true when R equals Pat or starts with Pat then Sep, the separator the
+   consumer's, so Shearline still names no vocabulary.
+
 ## Open, for Matt
 
-1. A `glob/2` built-in over `path.Match` semantics, if Ductile's resource names want `*`; and
-   whether grant prefixes should be segment-aware (`timeline/health` matching `timeline/healthy`
-   today) or resources canonicalised at the boundary. Shearline has no path semantics by design;
-   the consumer owns the vocabulary and the canonical form. Raised by the security review.
-2. `Proof.Rule` carries no rule-set identity, so "line 4" is ambiguous once two sets are loaded.
+1. `Proof.Rule` carries no rule-set identity, so "line 4" is ambiguous once two sets are loaded.
    It is now a copy (a consumer writing through the pointer crashed the shared plan), but a
    `{RuleSet, Line, Text}` value would say which set the rule came from. Needs `Program` to know
    its set, an API change.
-3. A denied request carries no proof. The spec wants the derivation behind a refusal; a deny
+2. A denied request carries no proof. The spec wants the derivation behind a refusal; a deny
    through `deny/3` could carry the proof of the `deny` tuple that blocked it, while deny by
    absence has none. Intent versus contract.
-4. Typed context keys (spec open question 4): a deny rule comparing a context value of the wrong
+3. Typed context keys (spec open question 4): a deny rule comparing a context value of the wrong
    kind silently does not fire, since mismatched kinds compare false. Declaring kinds per key
    would catch it at the request; today the rule must guard the kind itself.
-5. Whether `Permitted` should also exist per resource: "who may read R" (a `principals/3`
+4. Whether `Permitted` should also exist per resource: "who may read R" (a `principals/3`
    relation). Cheap to add once Ductile's real requests are written down.
