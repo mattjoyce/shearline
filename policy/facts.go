@@ -8,17 +8,20 @@ import (
 )
 
 // Schema is the PARC base relations. A consumer's standing facts use role, inherits
-// and grants; a request supplies principal, action, resource and context.
-var Schema = datalog.Schema{
-	Arities: map[string]int{
-		"principal": 1, "action": 1, "resource": 1, "context": 2,
-		"role": 2, "inherits": 2, "grants": 3, "denied": 3,
-	},
-	Checks: map[string]func(datalog.Atom) error{
-		"principal": nonEmptyString, "action": nonEmptyString, "resource": nonEmptyString,
-		"context": nonEmptyString, "role": nonEmptyString, "inherits": nonEmptyString,
-		"grants": nonEmptyString, "denied": nonEmptyString,
-	},
+// and grants; a request supplies principal, action, resource and context. Each call
+// returns a fresh value, so no caller can change what later Loads compile against.
+func Schema() datalog.Schema {
+	return datalog.Schema{
+		Arities: map[string]int{
+			"principal": 1, "action": 1, "resource": 1, "context": 2,
+			"role": 2, "inherits": 2, "grants": 3, "denied": 3,
+		},
+		Checks: map[string]func(datalog.Atom) error{
+			"principal": nonEmptyString, "action": nonEmptyString, "resource": nonEmptyString,
+			"context": nonEmptyString, "role": nonEmptyString, "inherits": nonEmptyString,
+			"grants": nonEmptyString, "denied": nonEmptyString,
+		},
+	}
 }
 
 // nonEmptyString requires a non-empty string constant in every position of an atom

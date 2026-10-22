@@ -3,6 +3,7 @@ package policy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"sync"
@@ -353,5 +354,80 @@ func TestPermitted_OnlyTheCallersTuples(t *testing.T) {
 	got, err := p.Permitted(context.Background(), "bo", "read")
 	if err != nil || !reflect.DeepEqual(got, []string{"docs/", "timeline/"}) {
 		t.Fatalf("got %v, %v", got, err)
+	}
+}
+
+func TestDecide_ScaleManyPrincipals(t *testing.T) {
+	standing := []datalog.Fact{Grant("reader", "read", "timeline/")}
+	for i := 0; i < 50000; i++ {
+		standing = append(standing, Role(fmt.Sprintf("principal-%05d", i), "reader"))
+	}
+	p := mustLoad(t, standing, RBAC())
+	d, err := p.Decide(context.Background(), Request{Principal: "principal-00001", Action: "read", Resource: "timeline/bp"})
+	if err != nil || !d.Allow {
+		t.Fatalf("Decide = %+v, %v", d, err)
+	}
+	got, err := p.Permitted(context.Background(), "principal-00001", "read")
+	if err != nil || !reflect.DeepEqual(got, []string{"timeline/"}) {
+		t.Fatalf("Permitted = %v, %v", got, err)
+	}
+}
+
+func TestSchema_FreshEachCall(t *testing.T) {
+	delete(Schema().Checks, "grants")
+	delete(Schema().Arities, "grants")
+	if _, ok := Schema().Checks["grants"]; !ok {
+		t.Fatal("mutating one Schema() value changed the next")
+	}
+	if _, err := Load([]datalog.Fact{Grant("r", "read", "")}, RBAC()); !errors.Is(err, datalog.ErrInvalid) {
+		t.Fatalf("an empty prefix loaded after Schema() was mutated: %v", err)
+	}
+}
+
+func TestRBAC_FreshEachCall(t *testing.T) {
+	a := RBAC()
+	a.Program.Rules[0].Head.Name = "tampered"
+	a.Program.Rules[0].Body[0].Atom.Name = "tampered"
+	a.Program.Declared["tampered"] = 1
+	b := RBAC()
+	if b.Program.Rules[0].Head.Name == "tampered" || b.Program.Rules[0].Body[0].Atom.Name == "tampered" || b.Program.Declared["tampered"] != 0 {
+		t.Fatal("RBAC() shares its AST with the caller")
+	}
+	if _, err := Load(fixture(), RBAC()); err != nil {
+		t.Fatalf("Load after tampering: %v", err)
+	}
+}
+
+func TestLoad_RequiresAllowAndPermit(t *testing.T) {
+	tests := []struct {
+		name string
+		sets []datalog.RuleSet
+		want string
+	}{
+		{"no rule sets", nil, "allow/3"},
+		{"permit/1 without RBAC", []datalog.RuleSet{ruleSet(t, "mine", `allow(P, A, R) :- principal(P), action(A), resource(R). permit(P) :- principal(P).`)}, "permit"},
+		{"allow/2", []datalog.RuleSet{RBAC(), ruleSet(t, "mine", `allow(P, A) :- principal(P), action(A).`)}, "allow"},
+		{"permit missing", []datalog.RuleSet{ruleSet(t, "mine", `allow(P, A, R) :- principal(P), action(A), resource(R).`)}, "permit/3"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Load(nil, tc.sets...)
+			if !errors.Is(err, datalog.ErrInvalid) || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("err = %v, want ErrInvalid naming %s", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestLoad_RefusesHashMismatch(t *testing.T) {
+	bad := RBAC()
+	bad.Hash = "sha256:0000"
+	if _, err := Load(nil, bad); !errors.Is(err, datalog.ErrInvalid) {
+		t.Fatalf("a wrong hash loaded: %v", err)
+	}
+	edited := RBAC()
+	edited.Program.Text += "\n% edited after the hash\n"
+	if _, err := Load(nil, edited); !errors.Is(err, datalog.ErrInvalid) {
+		t.Fatalf("edited text loaded: %v", err)
 	}
 }

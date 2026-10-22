@@ -38,7 +38,42 @@ func mustRuleSet(name string, version int, text string) datalog.RuleSet {
 
 // RBAC is the bundled rule set: roles, inheritance, prefix grants, and deny/3 as a
 // hook for a consumer's own rule set.
-func RBAC() datalog.RuleSet { return rbac }
+func RBAC() datalog.RuleSet {
+	s := rbac
+	s.Program = copyProgram(rbac.Program)
+	return s
+}
+
+// copyProgram is a deep copy: the AST holds pointers, and the package-level rule set must
+// not be reachable through a value a caller holds.
+func copyProgram(p datalog.Program) datalog.Program {
+	out := datalog.Program{Text: p.Text, Declared: make(map[string]int, len(p.Declared))}
+	for k, v := range p.Declared {
+		out.Declared[k] = v
+	}
+	out.Rules = make([]datalog.Rule, len(p.Rules))
+	for i, r := range p.Rules {
+		out.Rules[i] = datalog.Rule{Head: copyAtom(r.Head), Line: r.Line, Body: make([]datalog.Literal, len(r.Body))}
+		for j, l := range r.Body {
+			cl := datalog.Literal{Negated: l.Negated}
+			if l.Atom != nil {
+				a := copyAtom(*l.Atom)
+				cl.Atom = &a
+			}
+			if l.Compare != nil {
+				c := *l.Compare
+				cl.Compare = &c
+			}
+			out.Rules[i].Body[j] = cl
+		}
+	}
+	return out
+}
+
+func copyAtom(a datalog.Atom) datalog.Atom {
+	a.Args = append([]datalog.Term(nil), a.Args...)
+	return a
+}
 
 // requestRelations are the relations only a request may supply.
 var requestRelations = map[string]bool{"principal": true, "action": true, "resource": true, "context": true}
@@ -66,8 +101,9 @@ type Decision struct {
 	RuleSets []string      // the loaded sets' IDs in load order, e.g. "rbac/1 sha256:..."
 }
 
-// Load compiles the rule sets in order over Schema and holds the standing facts. The
-// first set is normally RBAC(). Rule sets are policy, never user input: a later set
+// Load verifies each rule set against its hash, compiles the sets in order over
+// Schema() and holds the standing facts. The first set is normally RBAC(); the plan
+// must define allow/3 and permit/3. Rule sets are policy, never user input: a later set
 // may add rules to any relation, allow/3 included, and the only promise that survives
 // an arbitrary set is deny by absence. Any error is the consumer's to fix before
 // serving.
@@ -75,6 +111,9 @@ type Decision struct {
 // A consumer rule that compares a context value must guard its kind: constants of
 // different kinds compare false (and != true), so context("hour", "23") with H > 22
 // does not fire.
+//
+// An empty context value is allowed, and becomes a wildcard if a consumer rule feeds it
+// to prefix/2, since the empty prefix matches every resource.
 func Load(standing []datalog.Fact, sets ...datalog.RuleSet) (Policy, error) {
 	for _, f := range standing {
 		if requestRelations[f.Relation] {
@@ -85,14 +124,20 @@ func Load(standing []datalog.Fact, sets ...datalog.RuleSet) (Policy, error) {
 	programs := make([]datalog.Program, 0, len(sets))
 	ids := make([]string, len(sets))
 	for i, s := range sets {
+		if err := s.Verify(); err != nil {
+			return Policy{}, fmt.Errorf("policy: load: %w", err)
+		}
 		programs = append(programs, s.Program)
 		ids[i] = s.ID()
 	}
-	plan, err := datalog.Compile(Schema, programs...)
+	plan, err := datalog.Compile(Schema(), programs...)
 	if err != nil {
 		return Policy{}, fmt.Errorf("policy: load: %w", err)
 	}
-	b, err := datalog.NewBase(Schema, standing...)
+	if err := requireRelations(plan); err != nil {
+		return Policy{}, fmt.Errorf("policy: load: %w", err)
+	}
+	b, err := datalog.NewBase(Schema(), standing...)
 	if err != nil {
 		return Policy{}, fmt.Errorf("policy: load: %w", err)
 	}
@@ -161,6 +206,26 @@ func (p Policy) Permitted(ctx context.Context, principal, action string) ([]stri
 	}
 	sort.Strings(out)
 	return dedupe(out), nil
+}
+
+// requireRelations refuses a plan that lacks the relations Decide and Permitted read, at
+// the arity they read them: a set without RBAC would otherwise deny everything silently,
+// or panic in Permitted on a tuple of the wrong width.
+func requireRelations(plan datalog.Plan) error {
+	for _, r := range []struct {
+		name string
+		want int
+	}{{"allow", 3}, {"permit", 3}} {
+		name, want := r.name, r.want
+		got, ok := plan.Arity(name)
+		switch {
+		case !ok:
+			return fmt.Errorf("%w: no rule set defines %s/%d; load RBAC() first or define it", datalog.ErrInvalid, name, want)
+		case got != want:
+			return fmt.Errorf("%w: %s is %s/%d, but a decision reads %s/%d", datalog.ErrInvalid, name, name, got, name, want)
+		}
+	}
+	return nil
 }
 
 func evalError(op string, err error) error {
