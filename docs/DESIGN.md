@@ -80,7 +80,9 @@ type Answer                                            // unchanged (sorted tupl
 // Proofs are deterministic: for one (plan, base, options) every evaluation yields the
 // same proof for every tuple; a base is its fact sequence, so policy.Load sorts
 // standing facts and a proof is a function of the policy's content. Rule is a deep
-// copy the holder may keep or change; the plan is not reachable through a proof.
+// copy the holder may keep or change; the plan is not reachable through a proof. It
+// carries Set ("name/version" of the rule set Compile took it from, "" for a bare
+// Program), Line, and Text (the rule as written), so a receipt can name its rule.
 type Proof struct {
     Relation string
     Tuple    Tuple
