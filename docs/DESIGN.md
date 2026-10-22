@@ -377,7 +377,14 @@ above.
    and is simply never true, since H is a declared number; the declared kind makes such a rule
    dead rather than dangerous. Catching it would need kind inference over comparisons.
 
+5. **No inverse listing yet (2026-10-22).** "Who may do A on R" waits for a consumer that asks. When
+   one does, it is not a seeded rule set run without `principal/1`, which would reintroduce the
+   whole-world evaluation; it is a second bundled set used only for listing, with its own larger
+   bound, and a test that it agrees with `Decide` over a fixture. Until then a consumer loops over
+   principals and pays one evaluation each.
+
 ## Open, for Matt
 
-1. Whether `Permitted` should also exist per resource: "who may read R" (a `principals/3`
-   relation). Cheap to add once Ductile's real requests are written down.
+1. Whether `relation` should be two types, a frozen base relation and a growing derived one,
+   instead of one struct with a `frozen` bit whose `add` panics on the wrong mode (module panel
+   H5). A refactor with no bug behind it.
