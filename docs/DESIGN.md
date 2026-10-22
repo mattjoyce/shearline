@@ -93,6 +93,48 @@ type Proof struct {
 // the evaluation ran without Options.Proofs.
 func (r Result) Proof(name string, t Tuple) (p Proof, ok bool)
 
+// Absence is why a tuple was not derived: why-not provenance. For a goal not in the
+// result, every rule whose head unifies with it is walked, body in evaluation order,
+// against the result's relations; each rule reports the farthest literal that found no
+// match and the bindings it had there. A positive literal over a derived relation that
+// found nothing is explained recursively (depth-bounded, visited set, so recursion
+// through holds/2 terminates). A negation that held reports the proof of the tuple that
+// blocked it. A goal over a base relation with no rules is simply "no such fact".
+// Options.Proofs must be on. Deterministic for one (plan, base, goal). Engine-level: it
+// knows nothing of RBAC, and for rbac.dl it reads as "no role fact for P", "no grant for
+// A on a held role", "no permitted prefix matches R", or "denied by <proof>".
+type Absence struct {
+    Relation  string
+    Goal      []Term           // constants, or variables where the caller left a position open
+    Rules     []RuleFailure    // one per candidate rule; empty for a base relation
+    Truncated bool             // the walk hit whyNotSteps or maxDepth; what is here is still true
+}
+// "Farthest literal": a depth-first walk over the rule's ordered body, extending
+// bindings through every match of each literal (matches in relation order, rules in
+// plan order, so the answer is deterministic); the literal reported is the one with the
+// greatest index that any path reached and found no match, with that path's bindings.
+// A body that matches fully would have derived the goal, so it cannot occur against the
+// result it came from; it is reported as an ErrInvalid. The walk is bounded by
+// whyNotSteps = 1 << 16 matches tried, since each matched literal branches.
+type RuleFailure struct {
+    Rule    *Rule              // a copy, as in Proof
+    Bound   map[string]Const   // bindings when the walk stopped
+    Failed  Literal            // the farthest literal with no match (negation: one that held)
+    Because []Absence          // why Failed found nothing, when it is a derived positive atom
+    Blocked *Proof             // when Failed is a negation that held: the tuple that blocked
+}
+// WhyNot explains a tuple's absence. ok is false when t is in the result (ask Proof) or
+// the evaluation ran without Options.Proofs. maxDepth bounds the recursion; 0 means the
+// engine's default (whyNotDepth = 8, enough for any policy rule set, small enough that a
+// pathological recursion stays cheap).
+func (r Result) WhyNot(name string, t Tuple, maxDepth int) (a Absence, ok bool)
+
+// Both Proof and Absence render: String() is an indented derivation for a log or an
+// operator; MarshalJSON emits relation, tuple, rule as {set, line, text}, and body or
+// rules recursively, never the parser's AST.
+func (p Proof) String() string;   func (p Proof) MarshalJSON() ([]byte, error)
+func (a Absence) String() string; func (a Absence) MarshalJSON() ([]byte, error)
+
 // RuleSet is a named, versioned program with a hash over its text.
 type RuleSet struct {
     Name    string
@@ -208,9 +250,14 @@ func (p Policy) Permitted(ctx context.Context, principal, action string) ([]stri
 
 type Decision struct {
     Allow    bool
-    Proof    datalog.Proof   // zero value when denied
-    RuleSets []string        // the loaded sets' IDs in load order, e.g. "rbac/1 sha256:…"
+    Proof    datalog.Proof     // why allowed; zero when denied
+    Why      datalog.Absence   // why denied: Result.WhyNot("allow", …); zero when allowed or on error
+    RuleSets []string          // the loaded sets' IDs in load order, e.g. "rbac/1 sha256:…"
 }
+// A deny through deny/3 appears inside Why as the negation `not deny(P, A, R)` that
+// held, with Blocked carrying the proof of the deny tuple. Deny by absence shows the
+// farthest literal each allow rule reached. Every refusal therefore answers "why" from
+// the decision itself, the spec's job story, with no RBAC knowledge in the engine.
 
 // The fact constructors are how a consumer builds standing facts without learning
 // the engine's vocabulary. Each returns a datalog.Fact for Load or Decide.
@@ -301,13 +348,16 @@ above.
    rule as written, sliced by the parser). A proof's rule therefore says which set, which line and
    what text; the hash stays in `Decision.RuleSets`, and a stored receipt keeps both.
 
+3. **A refusal explains itself (2026-10-22).** Matt chose transparency over minimalism: `Decide`
+   fills `Decision.Why` with why-not provenance from the engine (`Result.WhyNot`), deterministic
+   and RBAC-blind, with the blocking deny's proof inside it when `deny/3` fired. Proof and Absence
+   both render as text and compact JSON, so a consumer can log or store a receipt without
+   learning the AST. The value is partly future state; the cost is one engine walk per refusal.
+
 ## Open, for Matt
 
-1. A denied request carries no proof. The spec wants the derivation behind a refusal; a deny
-   through `deny/3` could carry the proof of the `deny` tuple that blocked it, while deny by
-   absence has none. Intent versus contract.
-2. Typed context keys (spec open question 4): a deny rule comparing a context value of the wrong
+1. Typed context keys (spec open question 4): a deny rule comparing a context value of the wrong
    kind silently does not fire, since mismatched kinds compare false. Declaring kinds per key
    would catch it at the request; today the rule must guard the kind itself.
-3. Whether `Permitted` should also exist per resource: "who may read R" (a `principals/3`
+2. Whether `Permitted` should also exist per resource: "who may read R" (a `principals/3`
    relation). Cheap to add once Ductile's real requests are written down.
