@@ -157,7 +157,9 @@ type Request struct {
 
 type Policy struct { /* plan, frozen standing base, rule-set IDs */ }
 
-// Load compiles the rule sets in order over Schema and holds the standing facts. The
+// Load compiles the rule sets in order over Schema and holds the standing facts. A
+// standing fact in a request relation (principal, action, resource, context) is
+// refused: it would speak for every request. The
 // first set is normally RBAC(). Rule sets are policy, never user input: a later set
 // may add rules to any relation, allow/3 included, and the only promise that survives
 // an arbitrary set is deny by absence. Any error is the consumer's to fix before
@@ -257,6 +259,12 @@ above.
 
 ## Open, for Matt
 
-1. A `glob/2` built-in over `path.Match` semantics, if Ductile's resource names want `*`.
+1. A `glob/2` built-in over `path.Match` semantics, if Ductile's resource names want `*`; and
+   whether grant prefixes should be segment-aware (`timeline/health` matching `timeline/healthy`
+   today) or resources canonicalised at the boundary. Shearline has no path semantics by design;
+   the consumer owns the vocabulary and the canonical form. Raised by the security review.
+3. Typed context keys (spec open question 4): a deny rule comparing a context value of the wrong
+   kind silently does not fire, since mismatched kinds compare false. Declaring kinds per key
+   would catch it at the request; today the rule must guard the kind itself.
 2. Whether `Permitted` should also exist per resource: "who may read R" (a `principals/3`
    relation). Cheap to add once Ductile's real requests are written down.
