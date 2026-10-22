@@ -20,7 +20,10 @@ type Term, Atom, Comparison, Literal, Rule, Program    // unchanged
 func Parse(text string) (Program, error)               // unchanged
 
 // Schema names the base relations a base may hold and, per relation, an optional
-// compile-time check run on every atom (head or body) that names it.
+// check. The check runs on every atom (head or body) that names the relation at
+// Compile, and on every fact of the relation at NewBase/With (as an Atom of
+// constants), so the schema's word holds everywhere a tuple enters. A Schema that
+// carries checks is not a comparable value; keep every other field plain data.
 type Schema struct {
     Arities map[string]int
     Checks  map[string]func(Atom) error               // nil map or nil entry: no check
@@ -36,9 +39,11 @@ type Fact struct {
 // wrong arity, is ErrInvalid. Every relation in schema.Arities exists, empty or not.
 func NewBase(schema Schema, facts ...Fact) (Base, error)
 
-// With is the standing base plus more facts, as a new value. Relations the new facts
-// do not touch are shared, not copied; a relation they do touch is rebuilt from the
-// standing tuples plus the new ones. Same validation as NewBase.
+// With is the standing base plus more facts, as a new value. Postcondition, and the
+// property a test holds over random fact sets: b.With(f...) is observationally equal
+// to NewBase(schema, standing..., f...) in Len, in every Evaluate, and in every
+// Answer hash. Implementation: relations the new facts do not touch are shared, not
+// copied; a relation they do touch is rebuilt. Same validation as NewBase.
 func (b Base) With(facts ...Fact) (Base, error)
 
 func (b Base) Len(relation string) int                 // unchanged
@@ -47,8 +52,13 @@ func Compile(schema Schema, programs ...Program) (Plan, error)   // Definitions 
 
 type Options struct {
     MaxBytes int   // over every derived tuple's JSON text; 0 is no bound; over it, *TooLarge
+    MaxSteps int   // join steps (tuples visited) over the whole evaluation; 0 is no bound; over it, *TooLarge
     Proofs   bool  // record, for each derived tuple, the first derivation that produced it
 }
+// MaxBytes bounds what is derived; MaxSteps bounds the work to derive it. A rule that
+// joins a wide product and derives only duplicates is charged no bytes, so without
+// MaxSteps its termination would rest on the caller's deadline alone. *TooLarge
+// carries which bound was crossed.
 func Evaluate(ctx context.Context, plan Plan, base Base, opts Options) (Result, error)
 
 func (r Result) Relation(name string) (Answer, error)  // unchanged
@@ -57,8 +67,14 @@ type Answer                                            // unchanged (sorted tupl
 // Proof is how one tuple came to be. A base fact has Rule nil and no Body. A derived
 // tuple has the rule that first produced it and, in the rule's written order, the
 // positive body atoms' tuples, each with its own proof. Built-ins and comparisons and
-// negations contribute no body entry. The tree is finite and acyclic: a body tuple was
-// always derived strictly before its head.
+// negations contribute no body entry. The structure is finite and acyclic: a body
+// tuple was always derived strictly before its head. It is a DAG shared as values:
+// Result.Proof builds each (relation, tuple) proof once and reuses that value wherever
+// it appears in a body, so the size is linear in the derivation records.
+//
+// Proofs are deterministic: for one (plan, base, options) every evaluation yields the
+// same proof for every tuple. Rule points into the plan's rules, shared not copied,
+// and is never written through.
 type Proof struct {
     Relation string
     Tuple    Tuple
@@ -102,10 +118,16 @@ guard; `eval.go`'s `join` evaluates it where it evaluates a `Comparison`.
 
 ### Evaluation invariants
 
-- **Concurrency.** A `Base` is immutable once built and safe for concurrent `Evaluate` calls. Base
-  relations are *frozen* at `NewBase`/`With`: every per-position index is built then, and
-  `relation.candidates` never mutates a frozen relation. Derived relations keep the lazy index.
-  Anam's lazy-index mutation on shared base relations would race under a concurrent `Policy`.
+- **Concurrency.** A `Base` and a `Plan` are immutable once built and safe for concurrent
+  `Evaluate` calls; a `Result` is read-only and safe to share. Base relations are *frozen* at
+  `NewBase`/`With`: every per-position index is built then, `relation.candidates` never mutates a
+  frozen relation, and a frozen relation's `add` panics (a programming error, not a condition).
+  Derived relations are created per evaluation and keep the lazy index. Anam's lazy-index
+  mutation on shared base relations would race under a concurrent `Policy`.
+- **Determinism.** `Evaluate` is a function of (plan, base, options): same inputs, same `Answer`
+  hashes and the same `Proof` for every tuple. Every walk over a map on the derivation path
+  (`merge` over the round's delta above all) iterates in sorted relation order, since insertion
+  order decides which derivation is first. A test evaluates twice and compares proofs deeply.
 - **Termination.** No function symbols, no built-in produces a value; evaluation reaches a
   fixpoint. The deadline is checked every `stepsPerDeadlineCheck = 1024` join steps (unchanged).
 - **Declared and undefined is empty.** Anam's `checkDefined` is removed. A relation a program
@@ -136,23 +158,34 @@ type Request struct {
 type Policy struct { /* plan, frozen standing base, rule-set IDs */ }
 
 // Load compiles the rule sets in order over Schema and holds the standing facts. The
-// first set is normally RBAC(). Any error is the consumer's to fix before serving.
+// first set is normally RBAC(). Rule sets are policy, never user input: a later set
+// may add rules to any relation, allow/3 included, and the only promise that survives
+// an arbitrary set is deny by absence. Any error is the consumer's to fix before
+// serving.
 func Load(standing []datalog.Fact, sets ...datalog.RuleSet) (Policy, error)
 
 // Decide is total: nil error with Allow=false is deny by absence; a non-nil error is
-// also a deny, and Decision.Allow is false whenever err != nil.
+// also a deny, and Decision.Allow is false whenever err != nil. A *TooLarge from the
+// engine is wrapped with the remedy: narrow the grants reachable from this principal.
 func (p Policy) Decide(ctx context.Context, req Request) (Decision, error)
 
-// Permitted lists the grant patterns principal holds for action: the third column of
-// permit/3. It is the prefixes, not concrete resources, and deny/3 does not apply to
-// it (deny is per concrete resource). Sorted, deduplicated.
+// Permitted is the prefixes, not the resources: the grant patterns principal holds for
+// action, the third column of permit/3, sorted and deduplicated. deny/3 does not apply
+// (deny is per concrete resource).
 func (p Policy) Permitted(ctx context.Context, principal, action string) ([]string, error)
 
 type Decision struct {
-    Allow   bool
-    Proof   datalog.Proof   // zero value when denied
-    RuleSet string          // the loaded sets' IDs joined by "; ", e.g. "rbac/1 sha256:…"
+    Allow    bool
+    Proof    datalog.Proof   // zero value when denied
+    RuleSets []string        // the loaded sets' IDs in load order, e.g. "rbac/1 sha256:…"
 }
+
+// The fact constructors are how a consumer builds standing facts without learning
+// the engine's vocabulary. Each returns a datalog.Fact for Load or Decide.
+func Role(principal, role string) datalog.Fact
+func Inherits(role, parent string) datalog.Fact
+func Grant(role, action, prefix string) datalog.Fact
+func Deny(principal, action, resource string) datalog.Fact   // a fact for a consumer rule set to carry, see deny/3
 
 // Schema is the PARC base relations. Consumers' standing facts use role, inherits,
 // grants; a request supplies principal, action, resource, context.
@@ -161,7 +194,9 @@ var Schema = datalog.Schema{Arities: map[string]int{
     "role": 2, "inherits": 2, "grants": 3,
 }}
 
-// RBAC is the bundled rule set, rbac.dl, embedded.
+// RBAC is the bundled rule set, rbac.dl, embedded and parsed once at package init
+// (var rbac = mustRuleSet(...)): a broken asset fails at process start, never at the
+// first request, and TestRBAC_Parses holds it.
 func RBAC() datalog.RuleSet
 ```
 
@@ -182,10 +217,12 @@ permit(P, A, Pat) :- principal(P), action(A), holds(P, Role), grants(Role, A, Pa
 allow(P, A, R) :- permit(P, A, Pat), resource(R), prefix(Pat, R), not deny(P, A, R).
 ```
 
-`Decide` evaluates with `Options{MaxBytes: maxDecisionBytes, Proofs: true}` and reads
-`allow(principal, action, resource)`. `maxDecisionBytes = 1 << 20` is a named constant: a
-decision over one request should never derive a megabyte, and a policy that does is wrong, not
-large. `Permitted` evaluates with `principal` and `action` facts only and reads `permit/3`.
+`Decide` evaluates with `Options{MaxBytes: maxDecisionBytes, MaxSteps: maxDecisionSteps, Proofs:
+true}` and reads `allow(principal, action, resource)`. Both are named constants, invariants not
+knobs: `maxDecisionBytes = 1 << 20` because a decision over one request should never derive a
+megabyte, and `maxDecisionSteps = 1 << 22` because a decision is a few joins over one principal's
+roles and a policy that visits millions of tuples for one request is wrong, not large. `Permitted`
+evaluates with `principal` and `action` facts only and reads `permit/3`.
 
 Vocabulary rule: "importer", "source", "projection", "tenant" never appear in the module.
 
@@ -196,9 +233,16 @@ Vocabulary rule: "importer", "source", "projection", "tenant" never appear in th
 | `Schema` gains `Check func(Atom) error` | `Checks map[string]func(Atom) error` | per relation, as the sentence meant |
 | `With(facts) Base` | `With(facts) (Base, error)` | a wrong-arity fact must fail closed, not panic |
 | `Load(rules RuleSet, standing ...Fact)` | `Load(standing []Fact, sets ...RuleSet)` | the consumer extends RBAC with its own set (deny rules, extra roles) |
-| `Decision.RuleSet` one ID | IDs joined by `; ` | one decision may stand on two sets |
+| `Decision.RuleSet` one ID | `RuleSets []string` | one decision may stand on two sets; a list, not a string to split |
+| `Options{MaxBytes, Proofs}` | plus `MaxSteps` | bytes bound what is derived, not the work to derive it |
 | `grants(..., "timeline/*")` | `grants(..., "timeline/")`, matched by `prefix/2` | `*` is not a prefix; glob matching is a later built-in if a consumer needs it |
 | `Compile` keeps Anam's reachability check | removed | declared-and-undefined is the hook mechanism |
+
+## Review
+
+Luminary panel (Hickey × Armstrong, Ousterhout × Liskov) before any code:
+`docs/reviews/luminary-design-2026-10-22/`. The collation lists each finding and where it landed
+above.
 
 ## Open, for Matt
 
