@@ -114,8 +114,13 @@ type Absence struct {
 // plan order, so the answer is deterministic); the literal reported is the one with the
 // greatest index that any path reached and found no match, with that path's bindings.
 // A body that matches fully would have derived the goal, so it cannot occur against the
-// result it came from; it is reported as an ErrInvalid. The walk is bounded by
-// whyNotSteps = 1 << 16 matches tried, since each matched literal branches.
+// result it came from; it shows as a RuleFailure with a zero Failed. The walk is bounded
+// by whyNotSteps = 1 << 16 candidates tried (each matched literal branches) and by
+// maxDepth nested Because levels; Truncated is set where the cut fell and on every
+// Absence above it. A goal already explained in the same Absence is a cycle, not a cut:
+// it is left with an empty Because and does not set Truncated. A failed positive atom
+// over a base relation gets an Absence with no Rules, "no such fact". Derived relations
+// are scanned, not indexed, since a shared Result's lazy index would race.
 type RuleFailure struct {
     Rule    *Rule              // a copy, as in Proof
     Bound   map[string]Const   // bindings when the walk stopped
