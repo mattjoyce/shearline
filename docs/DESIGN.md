@@ -14,16 +14,19 @@ Carried from Anam's `internal/query` with the package renamed. Error messages ar
 var ErrSyntax, ErrInvalid, ErrTooLarge error          // the three; *TooLarge still Is(ErrTooLarge)
 
 type Kind; const KindString, KindNumber, KindBool      // unchanged
-type Const; func String(string) Const; func Bool(bool) Const; func Number(lexeme string) (Const, error)
+type Const; func String(string) Const; func Bool(bool) Const
+func Number(lexeme string) (Const, error)      // finite only; -0 is 0
+func Int(int64) Const; func Float(float64) (Const, error)   // the same constants Number makes
 type Tuple []Const                                     // unchanged
 type Term, Atom, Comparison, Literal, Rule, Program    // unchanged
 func Parse(text string) (Program, error)               // unchanged
 
 // Schema names the base relations a base may hold and, per relation, an optional
-// check. The check runs on every atom (head or body) that names the relation at
-// Compile, and on every fact of the relation at NewBase/With (as an Atom of
-// constants), so the schema's word holds everywhere a tuple enters. A Schema that
-// carries checks is not a comparable value; keep every other field plain data.
+// check. The check runs on every body atom that names the relation at Compile (a
+// head never names a base relation), and on every fact of the relation at
+// NewBase/With (as an Atom of constants), so the schema's word holds everywhere a
+// tuple enters. Its error is wrapped, so errors.Is on the caller's sentinel works. A
+// Schema that carries checks is not a comparable value; keep every other field plain data.
 type Schema struct {
     Arities map[string]int
     Checks  map[string]func(Atom) error               // nil map or nil entry: no check
@@ -58,7 +61,9 @@ type Options struct {
 // MaxBytes bounds what is derived; MaxSteps bounds the work to derive it. A rule that
 // joins a wide product and derives only duplicates is charged no bytes, so without
 // MaxSteps its termination would rest on the caller's deadline alone. *TooLarge
-// carries which bound was crossed.
+// carries Bound, BoundBytes or BoundSteps, and its message starts "datalog:".
+// A base that holds a relation the plan derives is ErrInvalid at Evaluate, as is one
+// that lacks a relation the plan reads.
 func Evaluate(ctx context.Context, plan Plan, base Base, opts Options) (Result, error)
 
 func (r Result) Relation(name string) (Answer, error)  // unchanged
@@ -73,8 +78,9 @@ type Answer                                            // unchanged (sorted tupl
 // it appears in a body, so the size is linear in the derivation records.
 //
 // Proofs are deterministic: for one (plan, base, options) every evaluation yields the
-// same proof for every tuple. Rule points into the plan's rules, shared not copied,
-// and is never written through.
+// same proof for every tuple; a base is its fact sequence, so policy.Load sorts
+// standing facts and a proof is a function of the policy's content. Rule is a deep
+// copy the holder may keep or change; the plan is not reachable through a proof.
 type Proof struct {
     Relation string
     Tuple    Tuple
@@ -182,14 +188,20 @@ func Load(standing []datalog.Fact, sets ...datalog.RuleSet) (Policy, error)
 // Decide is total: nil error with Allow=false is deny by absence; a non-nil error is
 // also a deny, and Decision.Allow is false whenever err != nil. A request with an
 // empty principal, action or resource is refused by the schema's checks and so denied
-// with an error, not special-cased. A cancelled ctx is an error before any work. A
-// *TooLarge from the engine is wrapped with the remedy: narrow the grants reachable
-// from this principal. Decision.RuleSets is the policy's own copy, never a shared slice.
+// with an error wrapping ErrRequest (the caller's fault; any other error is a broken
+// policy or engine). A cancelled ctx is an error before any work. A *TooLarge from the
+// engine is wrapped with the remedy: narrow the grants reachable from this principal.
+// Membership in allow/3 is read from the proof, which is on. Decision.RuleSets is the
+// policy's own copy, never a shared slice.
 func (p Policy) Decide(ctx context.Context, req Request) (Decision, error)
+
+// ErrRequest marks a malformed request, apart from a broken policy.
+var ErrRequest error
 
 // Permitted is the prefixes, not the resources: the grant patterns principal holds for
 // action, the third column of permit/3, sorted and deduplicated. deny/3 does not apply
-// (deny is per concrete resource).
+// (deny is per concrete resource). The third column is a contract a consumer's set must
+// keep, a non-empty string; a tuple that breaks it is ErrInvalid, never listed.
 func (p Policy) Permitted(ctx context.Context, principal, action string) ([]string, error)
 
 type Decision struct {
@@ -280,9 +292,10 @@ above.
    whether grant prefixes should be segment-aware (`timeline/health` matching `timeline/healthy`
    today) or resources canonicalised at the boundary. Shearline has no path semantics by design;
    the consumer owns the vocabulary and the canonical form. Raised by the security review.
-2. `Proof.Rule` as a pointer into the plan carries no rule-set identity, so "line 4" is ambiguous
-   once two sets are loaded, and a receipt that is serialised keeps nothing of the pointer. A
-   value `{RuleSet, Line, Text}` would survive serialisation; the pointer buys only size.
+2. `Proof.Rule` carries no rule-set identity, so "line 4" is ambiguous once two sets are loaded.
+   It is now a copy (a consumer writing through the pointer crashed the shared plan), but a
+   `{RuleSet, Line, Text}` value would say which set the rule came from. Needs `Program` to know
+   its set, an API change.
 3. A denied request carries no proof. The spec wants the derivation behind a refusal; a deny
    through `deny/3` could carry the proof of the `deny` tuple that blocked it, while deny by
    absence has none. Intent versus contract.
