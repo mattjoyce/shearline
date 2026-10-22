@@ -1,0 +1,13 @@
+% deny(P, A, R): the consumer's denials. The base relation denied/3 carries them as
+% facts; a consumer rule set may add rules to deny/3 for derived denials. A deny rule
+% that reads allow/3 is a negation cycle and is refused at Load.
+deny(P, A, R) :- denied(P, A, R).
+
+holds(P, R) :- role(P, R).
+holds(P, R) :- holds(P, Q), inherits(Q, R).
+
+% permit(P, A, Pat): P holds a role that grants A over resources with prefix Pat.
+permit(P, A, Pat) :- principal(P), action(A), holds(P, Role), grants(Role, A, Pat).
+
+% allow(P, A, R): the request's resource is under a permitted prefix and not denied.
+allow(P, A, R) :- permit(P, A, Pat), resource(R), prefix(Pat, R), not deny(P, A, R).
