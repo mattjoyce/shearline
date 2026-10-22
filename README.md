@@ -2,29 +2,45 @@
 
 A small, deterministic policy engine for Go. Facts in, a decision out, with the proof.
 
+## What it is
+
 Shearline answers one question: **may this principal take this action on this resource, in this
-context?** The policy is written as Datalog rules, the request as facts, and the answer is derived,
-deterministic and explainable. An allowed request carries the proof that derived it. A refused
-request carries why-not provenance: which rule got how far, and what it did not find.
+context?** You write the policy as rules, hand the engine the facts, and it derives the answer. An
+allowed request comes back with the proof that derived it. A refused request comes back with why:
+which rule got how far, and what it did not find.
 
-It is a library, not a service. It owns no state, reads no file and no network, and knows no
-vocabulary of its own: a resource name is an opaque string, and the consumer brings every fact.
+Two words a stranger needs. *Datalog* is a tiny rule language: facts like `role("ana", "reader").`
+and rules like `holds(P, R) :- role(P, R).` that derive new facts from old ones until nothing new
+appears; it always terminates. *PARC* is the vocabulary the bundled rules use: principal, action,
+resource, context.
 
-Status: pre-1.0, API may change. No consumer has imported it yet; its first two will be
+Shearline is a library, not a service. It owns no state, reads no file and no network, and knows
+no vocabulary of its own: a resource name is an opaque string, and you bring every fact.
+
+Status: pre-1.0, the API may change. No consumer has imported it yet; the first two will be
 [Anam](https://github.com/mattjoyce/anam), whose Datalog evaluator it was cleaved from, and
 [Ductile](https://github.com/mattjoyce/ductile).
 
-## Install
+## Try it in a minute
+
+Go 1.25 or later, standard library only.
+
+```
+git clone https://github.com/mattjoyce/shearline && cd shearline
+go test ./...
+go test ./policy -run Example -v
+```
+
+The last command runs a compiled twin of the program below (`policy/example_test.go`) and checks
+its output, so this page cannot drift from the API. To use it in your own module:
 
 ```
 go get github.com/mattjoyce/shearline
 ```
 
-Go 1.25 or later. Standard library only.
-
-## Example
-
 ```go
+package main
+
 import (
     "context"
     "fmt"
@@ -33,63 +49,112 @@ import (
     "github.com/mattjoyce/shearline/policy"
 )
 
-p, err := policy.Load(policy.Config{
-    Standing: []datalog.Fact{
-        policy.Role("ana", "operator"),
-        policy.Inherits("operator", "reader"),
-        policy.Grant("reader", "read", "timeline/"),
-        policy.Deny("ana", "read", "timeline/secret"),
-    },
-    Sets: []datalog.RuleSet{policy.RBAC()},
-})
-if err != nil { /* a bad policy never serves */ }
+func main() {
+    p, err := policy.Load(policy.Config{
+        Standing: []datalog.Fact{
+            policy.Role("ana", "operator"),
+            policy.Inherits("operator", "reader"),
+            policy.Grant("reader", "read", "timeline/"),
+            policy.Deny("ana", "read", "timeline/secret"),
+        },
+        Sets: []datalog.RuleSet{policy.RBAC()},
+    })
+    if err != nil {
+        panic(err) // a bad policy never serves
+    }
+    ctx := context.Background()
 
-d, err := p.Decide(context.Background(), policy.Request{
-    Principal: "ana", Action: "read", Resource: "timeline/bp",
-})
-fmt.Println(d.Allow)        // true
-fmt.Println(d.Proof)        // the derivation: allow <- permit <- holds <- role, inherits, grants
-fmt.Println(d.RuleSets)     // ["rbac/1 sha256:…"]
+    d, _ := p.Decide(ctx, policy.Request{Principal: "ana", Action: "read", Resource: "timeline/bp"})
+    fmt.Println(d.Allow, d.RuleSets)
+    fmt.Println(d.Proof)
 
-d, _ = p.Decide(context.Background(), policy.Request{
-    Principal: "ana", Action: "read", Resource: "timeline/secret",
-})
-fmt.Println(d.Allow)        // false
-fmt.Println(d.Why)          // allow(...) is not derived
-                            //   stopped at not deny(P, A, R) ... blocked by deny("ana", "read", "timeline/secret")
+    d, _ = p.Decide(ctx, policy.Request{Principal: "ana", Action: "read", Resource: "timeline/secret"})
+    fmt.Println(d.Allow)
+    fmt.Println(d.Why)
+}
 ```
 
-Every error from `Decide` is a deny. A malformed request wraps `policy.ErrRequest`; anything else is a
-broken policy or engine. `Permitted(ctx, principal, action)` lists the grant prefixes a principal holds,
-from the same rules that gate each request, so the listing and the gate cannot disagree.
+It prints the following (hash abbreviated; it changes whenever `rbac.dl` does):
 
-## Two packages
+```
+true [rbac/1 sha256:0bf5a121…]
+allow("ana", "read", "timeline/bp")  rbac/1:19  allow(P, A, R) :- permit(P, A, Pat), resource(R), prefix(Pat, R), not deny(P, A, R).
+  permit("ana", "read", "timeline/")  rbac/1:16  permit(P, A, Pat) :- principal(P), action(A), holds(P, Role), grants(Role, A, Pat).
+    principal("ana")  fact
+    action("read")  fact
+    holds("ana", "reader")  rbac/1:13  holds(P, R) :- holds(P, Q), inherits(Q, R).
+      holds("ana", "operator")  rbac/1:12  holds(P, R) :- principal(P), role(P, R).
+        principal("ana")  (shown above)
+        role("ana", "operator")  fact
+      inherits("operator", "reader")  fact
+    grants("reader", "read", "timeline/")  fact
+  resource("timeline/bp")  fact
 
-**`datalog`** is the engine: a small Datalog with stratified negation, comparisons and three string
-guards (`prefix`, `suffix`, `contains`). `Compile` refuses at load what would fail at request time
-(arities, safety, stratification, malformed programs, schema checks). `Evaluate` runs semi-naive to a
-fixpoint under a deadline, a byte bound and a step bound, over a `Base` that is immutable and safe
-for concurrent use. Answers are sorted, canonically serialised and hashed. Proofs record the first
-derivation of every tuple; `WhyNot` explains an absence. Rule sets are named, versioned and hashed,
-and a set's text is the one authoritative form.
+false
+allow("ana", "read", "timeline/secret") is not derived
+  rbac/1:19  allow(P, A, R) :- permit(P, A, Pat), resource(R), prefix(Pat, R), not deny(P, A, R).
+    stopped at not deny(P, A, R)  with A="read", P="ana", Pat="timeline/", R="timeline/secret"
+    blocked by
+      deny("ana", "read", "timeline/secret")  rbac/1:8  deny(P, A, R) :- principal(P), action(A), resource(R), denied(P, A, R).
+        principal("ana")  fact
+        action("read")  fact
+        resource("timeline/secret")  fact
+        denied("ana", "read", "timeline/secret")  fact
+```
 
-**`policy`** is the PARC layer (principal, action, resource, context) over it: `Config`, `Load`,
-`Decide`, `Permitted`, fact constructors, and the bundled `rbac.dl` with roles, inheritance, prefix
-grants and denials, every rule seeded by the request so a decision derives only the requester's
-world. Context keys are declared with their kinds or refused.
+## Using it
 
-## Design
+- **Build the policy once, decide many times.** `Load` compiles the rules and holds the standing
+  facts; a `Policy` is a value, safe to share between goroutines.
+- **Every error is a deny.** `Decide` never returns `Allow=true` with an error. A malformed request
+  (empty field, undeclared context key, wrong kind) wraps `policy.ErrRequest`; any other error is a
+  broken policy or engine.
+- **Context keys are declared or refused.** List every key a request may carry in
+  `Config.Context` with its kind; a request carrying anything else is refused. The rules see them
+  as `context(Key, Value)` facts.
+- **Grants are string prefixes.** `Grant("reader", "read", "timeline/")` covers every resource
+  starting with `timeline/`. There are no path semantics: end a prefix with your separator, and
+  make resource names canonical before you call. `Deny` is exact; a subtree denial is a rule of
+  your own using `prefix/2`.
+- **Extend with your own rules.** Add a rule set after `RBAC()` in `Config.Sets` to define
+  denials, add roles, or read context. Rule sets are policy, never user input.
+- **List what a principal holds.** `Permitted(ctx, principal, action)` returns the grant prefixes
+  from the same rules that gate requests. It does not apply `deny`, which is per concrete resource.
+  To list who may do something, loop over your principals and call `Decide`.
+- **Render a receipt.** `Proof` and `Why` print as indented text and marshal to compact JSON.
 
-- `docs/DESIGN.md` is the contract: the public API, the evaluation invariants, every deviation from
-  the original spec, and the six design decisions made with their reasons.
-- `SPEC.md` is the original draft spec, kept as history.
-- `docs/reviews/` holds the three reviews the module went through before and after it was built: a
-  design-stage Luminary panel, a whole-module panel, and an adversarial edge audit with fuzzing and
-  oracles. Each finding is tied to the commit that resolved it.
+## Reference
+
+Every exported name is documented in the source and on
+[pkg.go.dev](https://pkg.go.dev/github.com/mattjoyce/shearline), or locally:
+
+```
+go doc github.com/mattjoyce/shearline/policy
+go doc github.com/mattjoyce/shearline/datalog
+```
+
+`datalog` is the engine: parse, compile, evaluate, proofs, why-not, hashed rule sets. `policy` is
+the PARC layer over it with the bundled `rbac.dl`.
+
+## Why it is built this way
+
+The theory, in four sentences. A policy is a value and a decision is a pure function of (policy,
+request), so the same inputs always give the same answer, the same proof and the same hash.
+Everything fails closed: a bad rule set is refused at `Load`, a bad request at `Decide`, and a
+bound crossed during evaluation is an error, never a partial answer. The engine knows no
+vocabulary, so the consumer owns what names mean and Shearline owns only that the derivation is
+right. Every refusal explains itself from the decision, not from a log, because a policy you cannot
+interrogate is one you will stop trusting.
+
+The long form is in `docs/DESIGN.md`: the public API, the evaluation invariants, every deviation
+from the original spec, and the six design decisions with their reasons. `SPEC.md` is the original
+draft, kept as history. `docs/reviews/` holds the three reviews the module went through, a
+design-stage panel, a whole-module panel and an adversarial edge audit with fuzzing and oracles,
+each finding tied to the commit that resolved it.
 
 Engineering standards: standard library only, `gofmt` and `goimports`, `golangci-lint`, `gosec`,
 table-driven tests with real components, `go test -race -shuffle=on`, coverage above 80%, functions
-under about 60 lines and files under about 400.
+under about 60 lines and files under about 400. CI runs all of it on every push.
 
 ## Licence
 
