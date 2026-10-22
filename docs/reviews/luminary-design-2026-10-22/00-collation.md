@@ -25,6 +25,14 @@ Run before any teammate coded against the contract; resolutions are folded into 
 | 11 | `Permitted` doc leads with "prefixes" | Liskov | 🟡 | doc comment order | task #4 |
 | 12 | `*TooLarge` names the remedy for a decision | Armstrong | 🟡 | wrap with remedy in `Decide` | task #4 |
 
+## Correction after implementation
+
+Finding #1 was overstated. The cutter showed that each derived relation appends only from its
+own delta, so map order in `merge` never interleaved tuples within one relation and the
+derivation order was already a function of the inputs. The sorted walk stays as a guard for the
+proof recorder, not as a bug fix; the determinism test and the twice-evaluate proof comparison
+remain the standing evidence.
+
 ## Held tension (decided, not averaged)
 
 `Schema.Checks` makes `Schema` a non-value. Hickey objects; the spec and Ousterhout want the
