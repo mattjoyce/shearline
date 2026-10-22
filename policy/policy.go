@@ -40,6 +40,9 @@ func mustRuleSet(name string, version int, text string) datalog.RuleSet {
 // hook for a consumer's own rule set.
 func RBAC() datalog.RuleSet { return rbac }
 
+// requestRelations are the relations only a request may supply.
+var requestRelations = map[string]bool{"principal": true, "action": true, "resource": true, "context": true}
+
 // Request is the PARC shape: who, does what, to which, under what.
 type Request struct {
 	Principal string
@@ -68,7 +71,17 @@ type Decision struct {
 // may add rules to any relation, allow/3 included, and the only promise that survives
 // an arbitrary set is deny by absence. Any error is the consumer's to fix before
 // serving.
+//
+// A consumer rule that compares a context value must guard its kind: constants of
+// different kinds compare false (and != true), so context("hour", "23") with H > 22
+// does not fire.
 func Load(standing []datalog.Fact, sets ...datalog.RuleSet) (Policy, error) {
+	for _, f := range standing {
+		if requestRelations[f.Relation] {
+			return Policy{}, fmt.Errorf("policy: load: %w: a standing fact of %s is a request relation; a standing fact there would speak for every request",
+				datalog.ErrInvalid, f.Relation)
+		}
+	}
 	programs := make([]datalog.Program, 0, len(sets))
 	ids := make([]string, len(sets))
 	for i, s := range sets {
@@ -140,6 +153,10 @@ func (p Policy) Permitted(ctx context.Context, principal, action string) ([]stri
 	}
 	out := make([]string, 0, len(ans.Tuples))
 	for _, t := range ans.Tuples {
+		// A rule set may derive permit tuples for anyone; the listing is this caller's.
+		if !sameTuple(t[:2], datalog.Tuple{datalog.String(principal), datalog.String(action)}) {
+			continue
+		}
 		out = append(out, t[2].Text())
 	}
 	sort.Strings(out)

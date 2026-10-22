@@ -146,7 +146,6 @@ func TestDecide_RuleSetsIsACopy(t *testing.T) {
 }
 
 func TestDecide_ProofOnAllow(t *testing.T) {
-	t.Skip("engine Result.Proof is a stub that returns ok=false; un-skip when proofs land")
 	d, err := mustLoad(t, fixture(), RBAC()).Decide(context.Background(),
 		Request{Principal: "ana", Action: "read", Resource: "timeline/bp"})
 	if err != nil || !d.Allow {
@@ -154,6 +153,26 @@ func TestDecide_ProofOnAllow(t *testing.T) {
 	}
 	if d.Proof.Relation != "allow" || d.Proof.Rule == nil || len(d.Proof.Body) == 0 {
 		t.Fatalf("proof = %+v", d.Proof)
+	}
+	leaves := map[string]bool{}
+	var walk func(datalog.Proof)
+	walk = func(p datalog.Proof) {
+		if p.Rule == nil {
+			leaves[p.Relation] = true
+			return
+		}
+		if len(p.Body) == 0 {
+			t.Errorf("derived tuple %s has no body", p.Relation)
+		}
+		for _, b := range p.Body {
+			walk(b)
+		}
+	}
+	walk(d.Proof)
+	for _, want := range []string{"principal", "grants", "role"} {
+		if !leaves[want] {
+			t.Errorf("proof leaves %v lack a %s fact", leaves, want)
+		}
 	}
 }
 
@@ -311,5 +330,28 @@ func TestRequestFacts_ContextSorted(t *testing.T) {
 	}
 	if !reflect.DeepEqual(keys, []string{"a", "b", "c"}) {
 		t.Fatalf("context keys = %v", keys)
+	}
+}
+
+func TestLoad_RefusesRequestRelationFacts(t *testing.T) {
+	for _, rel := range []string{"principal", "action", "resource"} {
+		_, err := Load([]datalog.Fact{fact(rel, "x")}, RBAC())
+		if !errors.Is(err, datalog.ErrInvalid) || !strings.Contains(err.Error(), "request relation") {
+			t.Errorf("%s: err = %v", rel, err)
+		}
+	}
+	_, err := Load([]datalog.Fact{{Relation: "context", Tuple: datalog.Tuple{datalog.String("k"), datalog.String("v")}}}, RBAC())
+	if !errors.Is(err, datalog.ErrInvalid) {
+		t.Errorf("context: err = %v", err)
+	}
+}
+
+func TestPermitted_OnlyTheCallersTuples(t *testing.T) {
+	// A rule set may derive permit tuples for any principal; the listing keeps the caller's.
+	stray := ruleSet(t, "stray", `permit("other", "read", "secret/"). permit("bo", "write", "elsewhere/").`)
+	p := mustLoad(t, fixture(), RBAC(), stray)
+	got, err := p.Permitted(context.Background(), "bo", "read")
+	if err != nil || !reflect.DeepEqual(got, []string{"docs/", "timeline/"}) {
+		t.Fatalf("got %v, %v", got, err)
 	}
 }

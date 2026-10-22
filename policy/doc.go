@@ -8,6 +8,9 @@
 // safe to call from many goroutines. Every failure is a deny: a non-nil error always
 // comes with Allow false, and an absent allow/3 tuple is a deny with a nil error.
 //
+// Resource names are matched as given: canonicalising them (case, dots, separators) is
+// the consumer's job.
+//
 // RBAC is the one bundled rule set. A consumer extends it with its own set, most
 // often to define deny/3, and says so at Load.
 package policy

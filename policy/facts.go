@@ -21,10 +21,11 @@ var Schema = datalog.Schema{
 	},
 }
 
-// nonEmptyString requires a non-empty string constant in every position of an atom except the
-// value of context(Key, Value). A number or boolean there is the wrong kind of value, and an empty principal, role, action or prefix is a missing
-// value, not a wildcard: an empty prefix would match every resource. Variables pass; the
-// check sees rule atoms too.
+// nonEmptyString requires a non-empty string constant in every position of an atom
+// except the value of context(Key, Value). A number or boolean there is the wrong kind
+// of value, and an empty principal, role, action or prefix is a missing value, not a
+// wildcard: an empty prefix would match every resource. Variables pass; the check
+// sees rule atoms too.
 func nonEmptyString(a datalog.Atom) error {
 	for i, t := range a.Args {
 		if a.Name == "context" && i == 1 {
@@ -57,11 +58,16 @@ func Role(principal, role string) datalog.Fact { return fact("role", principal, 
 // Inherits says role also holds everything parent grants.
 func Inherits(role, parent string) datalog.Fact { return fact("inherits", role, parent) }
 
-// Grant says role may take action on every resource whose name starts with prefix.
+// Grant says role may take action on every resource whose name starts with prefix. The
+// prefix is a plain string prefix with no path semantics, so a consumer whose names are
+// segmented should end it with the separator ("timeline/", not "timeline"), since
+// "timeline/health" also matches "timeline/healthy".
 func Grant(role, action, prefix string) datalog.Fact { return fact("grants", role, action, prefix) }
 
 // Deny says principal may not take action on resource, whatever it is granted. It is a
-// denied/3 fact; rbac.dl derives deny/3 from it.
+// denied/3 fact; rbac.dl derives deny/3 from it. It denies the exact resource
+// string, not a subtree; a subtree denial is a consumer rule, for example
+// deny(P, A, R) :- principal(P), action(A), resource(R), prefix("timeline/health", R).
 func Deny(principal, action, resource string) datalog.Fact {
 	return fact("denied", principal, action, resource)
 }
