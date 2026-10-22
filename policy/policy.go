@@ -99,11 +99,16 @@ type Policy struct {
 	ids  []string
 }
 
-// Decision is the answer to one request, with what stood behind it.
+// Decision is the answer to one request, with what stood behind it. Proof is why it was
+// allowed and Why is why it was denied, so every refusal answers "why" from the decision
+// itself. A denial through deny/3 appears inside Why as the negation that held, with
+// Blocked carrying the proof of the deny tuple; a denial by absence shows the farthest
+// literal each allow rule reached.
 type Decision struct {
 	Allow    bool
-	Proof    datalog.Proof // zero value when denied
-	RuleSets []string      // the loaded sets' IDs in load order, e.g. "rbac/1 sha256:..."
+	Proof    datalog.Proof   // why allowed; zero when denied
+	Why      datalog.Absence // why denied: Result.WhyNot("allow", ...); zero when allowed or on error
+	RuleSets []string        // the loaded sets' IDs in load order, e.g. "rbac/1 sha256:..."
 }
 
 // Load verifies each rule set against its hash, compiles the sets in order over
@@ -157,6 +162,7 @@ func Load(standing []datalog.Fact, sets ...datalog.RuleSet) (Policy, error) {
 // Decide is total: nil error with Allow=false is deny by absence; a non-nil error is
 // also a deny, and Decision.Allow is false whenever err != nil. A *TooLarge from the
 // engine is wrapped with the remedy: narrow the grants reachable from this principal.
+// When the request is well formed and allow is absent, Decision.Why says why.
 func (p Policy) Decide(ctx context.Context, req Request) (Decision, error) {
 	d := Decision{RuleSets: append([]string(nil), p.ids...)}
 	if err := ctx.Err(); err != nil {
@@ -176,7 +182,13 @@ func (p Policy) Decide(ctx context.Context, req Request) (Decision, error) {
 	want := datalog.Tuple{datalog.String(req.Principal), datalog.String(req.Action), datalog.String(req.Resource)}
 	if proof, ok := res.Proof("allow", want); ok {
 		d.Allow, d.Proof = true, proof
+		return d, nil
 	}
+	why, ok := res.WhyNot("allow", want, 0)
+	if !ok {
+		return d, fmt.Errorf("policy: decide: allow%v is neither proved nor absent", want)
+	}
+	d.Why = why
 	return d, nil
 }
 

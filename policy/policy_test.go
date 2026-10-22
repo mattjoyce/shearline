@@ -2,12 +2,14 @@ package policy
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/mattjoyce/shearline/datalog"
 )
@@ -492,5 +494,138 @@ func TestErrRequest(t *testing.T) {
 	cancel()
 	if _, err := p.Decide(ctx, Request{Principal: "ana", Action: "read", Resource: "x"}); errors.Is(err, ErrRequest) {
 		t.Fatalf("a cancelled context is not a malformed request: %v", err)
+	}
+}
+
+// reaches reports whether the chain of absences ends at a literal over relation. A base
+// relation is not an Absence of its own: it is the Failed literal of the rule that read
+// it, so both are looked at.
+func reaches(a datalog.Absence, relation string) bool {
+	if a.Relation == relation {
+		return true
+	}
+	for _, r := range a.Rules {
+		if r.Failed.Atom != nil && r.Failed.Atom.Name == relation {
+			return true
+		}
+		for _, b := range r.Because {
+			if reaches(b, relation) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// failures lists every RuleFailure under a, depth first.
+func failures(a datalog.Absence) []datalog.RuleFailure {
+	var out []datalog.RuleFailure
+	for _, r := range a.Rules {
+		out = append(out, r)
+		for _, b := range r.Because {
+			out = append(out, failures(b)...)
+		}
+	}
+	return out
+}
+
+func proofLeaves(p datalog.Proof, into map[string]bool) {
+	if p.Rule == nil {
+		into[p.Relation] = true
+		return
+	}
+	for _, b := range p.Body {
+		proofLeaves(b, into)
+	}
+}
+
+func TestDecide_Why(t *testing.T) {
+	p := mustLoad(t, append(fixture(), Deny("bo", "read", "timeline/secret")), RBAC())
+	decide := func(req Request) Decision {
+		t.Helper()
+		d, err := p.Decide(context.Background(), req)
+		if err != nil {
+			t.Fatalf("Decide: %v", err)
+		}
+		return d
+	}
+
+	t.Run("unknown principal reaches a role absence", func(t *testing.T) {
+		d := decide(Request{Principal: "zed", Action: "read", Resource: "timeline/bp"})
+		if d.Allow || len(d.Why.Rules) == 0 || !reaches(d.Why, "role") {
+			t.Fatalf("Why = %v", d.Why)
+		}
+	})
+	t.Run("wrong action reaches grants", func(t *testing.T) {
+		d := decide(Request{Principal: "bo", Action: "write", Resource: "timeline/bp"})
+		if d.Allow || !reaches(d.Why, "grants") {
+			t.Fatalf("Why = %v", d.Why)
+		}
+	})
+	t.Run("resource outside every prefix stops at prefix", func(t *testing.T) {
+		d := decide(Request{Principal: "bo", Action: "read", Resource: "secrets/x"})
+		found := false
+		for _, f := range failures(d.Why) {
+			if f.Failed.Atom != nil && f.Failed.Atom.Name == "prefix" {
+				if _, ok := f.Bound["Pat"]; ok {
+					found = true
+				}
+			}
+		}
+		if d.Allow || !found {
+			t.Fatalf("no failure at prefix with Pat bound in %v", d.Why)
+		}
+	})
+	t.Run("explicit Deny is a negation that held, with the deny proof", func(t *testing.T) {
+		d := decide(Request{Principal: "bo", Action: "read", Resource: "timeline/secret"})
+		found := false
+		for _, f := range failures(d.Why) {
+			if f.Blocked != nil {
+				leaves := map[string]bool{}
+				proofLeaves(*f.Blocked, leaves)
+				found = found || leaves["denied"]
+			}
+		}
+		if d.Allow || !found {
+			t.Fatalf("no Blocked proof leaving at denied in %v", d.Why)
+		}
+	})
+	t.Run("allowed request has no Why", func(t *testing.T) {
+		d := decide(Request{Principal: "bo", Action: "read", Resource: "timeline/bp"})
+		if !d.Allow || !reflect.DeepEqual(d.Why, datalog.Absence{}) {
+			t.Fatalf("Why = %v", d.Why)
+		}
+	})
+	t.Run("renders", func(t *testing.T) {
+		d := decide(Request{Principal: "zed", Action: "read", Resource: "timeline/bp"})
+		if s := d.Why.String(); s == "" || !strings.Contains(s, "zed") {
+			t.Fatalf("String() = %q", s)
+		}
+		b, err := json.Marshal(d.Why)
+		if err != nil || !strings.Contains(string(b), "allow") {
+			t.Fatalf("MarshalJSON = %s, %v", b, err)
+		}
+	})
+	t.Run("error carries no Why", func(t *testing.T) {
+		d, err := p.Decide(context.Background(), Request{Action: "read", Resource: "x"})
+		if err == nil || d.Allow || !reflect.DeepEqual(d.Why, datalog.Absence{}) {
+			t.Fatalf("Decide = %+v, %v", d, err)
+		}
+	})
+}
+
+func TestDecide_WhyAtScale(t *testing.T) {
+	standing := []datalog.Fact{Grant("reader", "read", "timeline/")}
+	for i := 0; i < 50000; i++ {
+		standing = append(standing, Role(fmt.Sprintf("principal-%05d", i), "reader"))
+	}
+	p := mustLoad(t, standing, RBAC())
+	start := time.Now()
+	d, err := p.Decide(context.Background(), Request{Principal: "principal-00001", Action: "write", Resource: "timeline/bp"})
+	if err != nil || d.Allow || len(d.Why.Rules) == 0 {
+		t.Fatalf("Decide = %+v, %v", d, err)
+	}
+	if took := time.Since(start); took > time.Second {
+		t.Fatalf("a deny over 50,000 principals took %v", took)
 	}
 }
