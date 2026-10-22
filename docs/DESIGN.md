@@ -373,6 +373,9 @@ above.
    declares no keys accepts no context. The declaration is also the schema check on `context/2`,
    so a consumer rule naming an undeclared key or comparing a declared key with a constant of the
    wrong kind fails at `Load`. Nothing is inferred and there is no default-permissive state.
+   Known limit: the check sees atoms, not comparisons, so `context("hour", H), H > "22"` compiles
+   and is simply never true, since H is a declared number; the declared kind makes such a rule
+   dead rather than dangerous. Catching it would need kind inference over comparisons.
 
 ## Open, for Matt
 
