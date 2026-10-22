@@ -43,7 +43,9 @@ the commit column says where.
 
 ## Not taken, or deferred to Matt (in `docs/DESIGN.md` § Open)
 
-- `relation` as two types instead of a `frozen` bit (01 H5): a refactor with no bug behind it.
+- ~~`relation` as two types instead of a `frozen` bit (01 H5)~~: taken after all, as decision 6
+  with Matt, and cut along value/builder rather than base/derived; it also removed the scan
+  workaround `WhyNot` had needed for the lazy index.
 - `Proof.Rule` carrying rule-set identity (01 H2, 02 O-2): needs `Program` to know its set.
 - Proofs for denials (01 tension): intent versus contract.
 - Typed context keys (01 A5 consequence, 02 O-3): spec open question 4.
