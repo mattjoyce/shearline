@@ -294,17 +294,18 @@ above.
    `under(Sep, Pat, R)`: true when R equals Pat or starts with Pat then Sep, the separator the
    consumer's, so Shearline still names no vocabulary.
 
+2. **A proof names its rule set (2026-10-22).** `Rule` gains `Set` ("name/version", filled by
+   `Compile` from `Program.Name`, which `NewRuleSet` sets; empty for a bare `Parse`) and `Text` (the
+   rule as written, sliced by the parser). A proof's rule therefore says which set, which line and
+   what text; the hash stays in `Decision.RuleSets`, and a stored receipt keeps both.
+
 ## Open, for Matt
 
-1. `Proof.Rule` carries no rule-set identity, so "line 4" is ambiguous once two sets are loaded.
-   It is now a copy (a consumer writing through the pointer crashed the shared plan), but a
-   `{RuleSet, Line, Text}` value would say which set the rule came from. Needs `Program` to know
-   its set, an API change.
-2. A denied request carries no proof. The spec wants the derivation behind a refusal; a deny
+1. A denied request carries no proof. The spec wants the derivation behind a refusal; a deny
    through `deny/3` could carry the proof of the `deny` tuple that blocked it, while deny by
    absence has none. Intent versus contract.
-3. Typed context keys (spec open question 4): a deny rule comparing a context value of the wrong
+2. Typed context keys (spec open question 4): a deny rule comparing a context value of the wrong
    kind silently does not fire, since mismatched kinds compare false. Declaring kinds per key
    would catch it at the request; today the rule must guard the kind itself.
-4. Whether `Permitted` should also exist per resource: "who may read R" (a `principals/3`
+3. Whether `Permitted` should also exist per resource: "who may read R" (a `principals/3`
    relation). Cheap to add once Ductile's real requests are written down.
