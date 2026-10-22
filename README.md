@@ -1,5 +1,10 @@
 # Shearline
 
+[![ci](https://img.shields.io/github/actions/workflow/status/mattjoyce/shearline/ci.yml?branch=master&label=ci)](https://github.com/mattjoyce/shearline/actions/workflows/ci.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/mattjoyce/shearline.svg)](https://pkg.go.dev/github.com/mattjoyce/shearline)
+![Go version](https://img.shields.io/github/go-mod/go-version/mattjoyce/shearline)
+[![Licence](https://img.shields.io/github/license/mattjoyce/shearline)](LICENSE)
+
 A small, deterministic policy engine for Go. Facts in, a decision out, with the proof.
 
 ## What it is
