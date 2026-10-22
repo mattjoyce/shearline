@@ -377,11 +377,12 @@ above.
    and is simply never true, since H is a declared number; the declared kind makes such a rule
    dead rather than dangerous. Catching it would need kind inference over comparisons.
 
-5. **No inverse listing yet (2026-10-22).** "Who may do A on R" waits for a consumer that asks. When
-   one does, it is not a seeded rule set run without `principal/1`, which would reintroduce the
-   whole-world evaluation; it is a second bundled set used only for listing, with its own larger
-   bound, and a test that it agrees with `Decide` over a fixture. Until then a consumer loops over
-   principals and pays one evaluation each.
+5. **The inverse listing is the loop (2026-10-22).** "Who may do A on R" is answered by calling
+   `Decide` once per principal the consumer knows; the listing is the gate, so it cannot disagree
+   with it, and it carries context if the caller supplies it. Shearline plans no `Principals` call
+   and no second rule set: at the scale its consumers have, tens of tokens, the loop costs
+   microseconds, and a second evaluation mode would be a thing to keep consistent for a scale that
+   does not exist. Revisit only when a consumer has many thousands of principals and asks often.
 
 ## Open, for Matt
 
