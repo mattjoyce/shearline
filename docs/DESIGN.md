@@ -96,6 +96,13 @@ type RuleSet struct {
 func NewRuleSet(name string, version int, text string) (RuleSet, error)
 // ID is "name/version hash", the string a decision carries.
 func (s RuleSet) ID() string
+// Verify recomputes the hash over Program.Text; a RuleSet built or edited by hand
+// whose Hash does not match is ErrInvalid. policy.Load calls it, so the ID in a
+// decision is the hash of the rules that ran.
+func (s RuleSet) Verify() error
+
+// Arity reports a relation's arity in the plan, base or derived, and whether it exists.
+func (p Plan) Arity(name string) (int, bool)
 ```
 
 ### Built-ins
@@ -131,9 +138,13 @@ guard; `eval.go`'s `join` evaluates it where it evaluates a `Comparison`.
 - **Termination.** No function symbols, no built-in produces a value; evaluation reaches a
   fixpoint. The deadline is checked every `stepsPerDeadlineCheck = 1024` join steps (unchanged).
 - **Declared and undefined is empty.** Anam's `checkDefined` is removed. A relation a program
-  declares (`deny/3.`) and nothing defines evaluates as the empty relation. This is how a bundled
-  rule set exposes a hook the consumer may fill. Anam re-adds its `instant/1` check in its own
-  layer if it wants it; `Schema.Checks` is not the place (it sees one atom, not reachability).
+  declares and nothing defines evaluates as the empty relation, so a rule set can leave a hook
+  open; the bundled `rbac.dl` does not use it (its `deny/3` is defined from `denied/3`), a
+  consumer set may. Anam re-adds its `instant/1` check in its own layer if it wants it;
+  `Schema.Checks` is not the place (it sees one atom, not reachability).
+- **Bounds are approximate on bytes, exact on steps.** `MaxBytes` charges unescaped lengths, an
+  estimate of the JSON text; `MaxSteps` counts every candidate visited by a join or a negation
+  probe. Neither can be crossed with a nil error.
 
 ### What leaves (stays in Anam)
 
@@ -159,7 +170,9 @@ type Policy struct { /* plan, frozen standing base, rule-set IDs */ }
 
 // Load compiles the rule sets in order over Schema and holds the standing facts. A
 // standing fact in a request relation (principal, action, resource, context) is
-// refused: it would speak for every request. The
+// refused: it would speak for every request. Each set's Verify must pass, and the
+// compiled plan must define allow/3 and permit/3, else ErrInvalid naming the gap:
+// what Decide or Permitted would fail on is refused at Load. The
 // first set is normally RBAC(). Rule sets are policy, never user input: a later set
 // may add rules to any relation, allow/3 included, and the only promise that survives
 // an arbitrary set is deny by absence. Any error is the consumer's to fix before
@@ -192,12 +205,13 @@ func Inherits(role, parent string) datalog.Fact
 func Grant(role, action, prefix string) datalog.Fact
 func Deny(principal, action, resource string) datalog.Fact   // a denied/3 fact; rbac.dl derives deny/3 from it
 
-// Schema is the PARC base relations. Consumers' standing facts use role, inherits,
+// Schema is the PARC base relations, a fresh value per call so no caller can mutate
+// what a later Load compiles against. Consumers' standing facts use role, inherits,
 // grants, denied; a request supplies principal, action, resource, context. Every
 // argument of every relation but context's value is checked to be a non-empty string
 // (Schema.Checks): an empty principal, role, action or prefix is a missing value, not a
 // wildcard, and is refused at Load or at the request, never silently matched.
-var Schema = datalog.Schema{
+func Schema() datalog.Schema   // returns datalog.Schema{
     Arities: map[string]int{
         "principal": 1, "action": 1, "resource": 1, "context": 2,
         "role": 2, "inherits": 2, "grants": 3, "denied": 3,
@@ -211,15 +225,18 @@ var Schema = datalog.Schema{
 func RBAC() datalog.RuleSet
 ```
 
-`rbac.dl` (name `rbac`, version 1):
+`rbac.dl` (name `rbac`, version 1). Every rule is seeded by the request: the engine evaluates
+bottom-up with a per-request budget, so a rule that derived every principal's roles would spend
+the budget on strangers and trip the byte bound on a large standing base (found by the module
+panel, confirmed at 50,000 principals).
 
 ```
 % deny(P, A, R): the consumer's denials. The base relation denied/3 carries them as
 % facts (policy.Deny); a later rule set may add rules to deny/3 for denials that are
 % derived rather than listed.
-deny(P, A, R) :- denied(P, A, R).
+deny(P, A, R) :- principal(P), action(A), resource(R), denied(P, A, R).
 
-holds(P, R) :- role(P, R).
+holds(P, R) :- principal(P), role(P, R).
 holds(P, R) :- holds(P, Q), inherits(Q, R).
 
 % permit(P, A, Pat): P holds a role that grants A over resources with prefix Pat.
@@ -263,8 +280,14 @@ above.
    whether grant prefixes should be segment-aware (`timeline/health` matching `timeline/healthy`
    today) or resources canonicalised at the boundary. Shearline has no path semantics by design;
    the consumer owns the vocabulary and the canonical form. Raised by the security review.
-3. Typed context keys (spec open question 4): a deny rule comparing a context value of the wrong
+2. `Proof.Rule` as a pointer into the plan carries no rule-set identity, so "line 4" is ambiguous
+   once two sets are loaded, and a receipt that is serialised keeps nothing of the pointer. A
+   value `{RuleSet, Line, Text}` would survive serialisation; the pointer buys only size.
+3. A denied request carries no proof. The spec wants the derivation behind a refusal; a deny
+   through `deny/3` could carry the proof of the `deny` tuple that blocked it, while deny by
+   absence has none. Intent versus contract.
+4. Typed context keys (spec open question 4): a deny rule comparing a context value of the wrong
    kind silently does not fire, since mismatched kinds compare false. Declaring kinds per key
    would catch it at the request; today the rule must guard the kind itself.
-2. Whether `Permitted` should also exist per resource: "who may read R" (a `principals/3`
+5. Whether `Permitted` should also exist per resource: "who may read R" (a `principals/3`
    relation). Cheap to add once Ductile's real requests are written down.
