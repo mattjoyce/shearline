@@ -1,11 +1,11 @@
-package query_test
+package datalog_test
 
 import (
 	"errors"
 	"strings"
 	"testing"
 
-	"github.com/mattjoyce/anam/internal/query"
+	"github.com/mattjoyce/shearline/datalog"
 )
 
 // The syntax is small and its errors name the line and what was expected.
@@ -18,7 +18,7 @@ func TestParse(t *testing.T) {
 		wantErr    string
 	}{
 		{"fact and rule", `a("x", 1). b(X) :- a(X, N), N > 0.`, 2, map[string]int{}, ""},
-		{"comment and declaration", "% a comment\ninstant/1.\nc(X) :- instant(X).", 1, map[string]int{"instant": 1}, ""},
+		{"comment and declaration", "% a comment\nhook/1.\nc(X) :- hook(X).", 1, map[string]int{"hook": 1}, ""},
 		{"negation and anonymous", `d(X) :- a(X, _), not b(X).`, 1, map[string]int{}, ""},
 		{"every operator", `e(X) :- a(X, N), N = 1, N != 2, N < 3, N <= 3, N > 0, N >= 0.`, 1, map[string]int{}, ""},
 		{"booleans and escapes", `f(X) :- a(X, true), a("say \"hi\"", false).`, 1, map[string]int{}, ""},
@@ -35,9 +35,9 @@ func TestParse(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
-			p, err := query.Parse(c.text)
+			p, err := datalog.Parse(c.text)
 			if c.wantErr != "" {
-				if !errors.Is(err, query.ErrSyntax) || !strings.Contains(err.Error(), c.wantErr) {
+				if !errors.Is(err, datalog.ErrSyntax) || !strings.Contains(err.Error(), c.wantErr) {
 					t.Fatalf("Parse = %v, want ErrSyntax containing %q", err, c.wantErr)
 				}
 				return
@@ -64,7 +64,7 @@ func TestParse(t *testing.T) {
 // variable's name.
 func TestParse_Terms(t *testing.T) {
 	t.Parallel()
-	p, err := query.Parse(`r(X, _, "s", 1.50, true) :- base(X).`)
+	p, err := datalog.Parse(`r(X, _, "s", 1.50, true) :- base(X).`)
 	if err != nil {
 		t.Fatalf("Parse: %v", err)
 	}
@@ -72,13 +72,13 @@ func TestParse_Terms(t *testing.T) {
 	if args[0].Var != "X" || args[1].Var != "_" {
 		t.Errorf("variables = %q %q, want X _", args[0].Var, args[1].Var)
 	}
-	if args[2].Const.Kind() != query.KindString || args[2].Const.Text() != "s" {
+	if args[2].Const.Kind() != datalog.KindString || args[2].Const.Text() != "s" {
 		t.Errorf("string = %v", args[2].Const)
 	}
-	if args[3].Const.Kind() != query.KindNumber || args[3].Const.Text() != "1.5" {
+	if args[3].Const.Kind() != datalog.KindNumber || args[3].Const.Text() != "1.5" {
 		t.Errorf("number = %v, want 1.5", args[3].Const.Text())
 	}
-	if args[4].Const.Kind() != query.KindBool || args[4].Const.Text() != "true" {
+	if args[4].Const.Kind() != datalog.KindBool || args[4].Const.Text() != "true" {
 		t.Errorf("bool = %v", args[4].Const)
 	}
 	if p.Rules[0].Line != 1 || p.Rules[0].Body[0].Atom.Name != "base" {

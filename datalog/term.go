@@ -1,4 +1,4 @@
-package query
+package datalog
 
 import (
 	"bytes"
@@ -8,9 +8,8 @@ import (
 	"strings"
 )
 
-// Kind is the type of a constant. A query sees the three scalar kinds JSON has, and
-// nothing else: a container at a pointer is not a value, and the leaves beneath it
-// are.
+// Kind is the type of a constant. Datalog sees the three scalar kinds JSON has, and
+// nothing else: no null, no list, no object.
 type Kind uint8
 
 // The kinds, in the order constants of different kinds sort.

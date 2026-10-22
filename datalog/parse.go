@@ -1,4 +1,4 @@
-package query
+package datalog
 
 import (
 	"errors"
@@ -9,7 +9,7 @@ import (
 )
 
 // ErrSyntax is returned for text that is not a program.
-var ErrSyntax = errors.New("query: syntax")
+var ErrSyntax = errors.New("datalog: syntax")
 
 // Term is one argument of an atom or one side of a comparison: a variable, the
 // anonymous variable, or a constant.
@@ -57,7 +57,7 @@ type Program struct {
 	Text     string
 }
 
-// Parse reads a program. The syntax is Anam's own and small:
+// Parse reads a program. The syntax is small:
 //
 //	% a comment runs to the end of the line
 //	name/arity.                                  declares a relation another program defines

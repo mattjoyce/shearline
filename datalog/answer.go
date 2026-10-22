@@ -1,4 +1,4 @@
-package query
+package datalog
 
 import (
 	"crypto/sha256"
@@ -43,7 +43,7 @@ func (a *Answer) seal() error {
 		Tuples   []Tuple `json:"tuples"`
 	}{a.Relation, a.Tuples})
 	if err != nil {
-		return fmt.Errorf("query: serialise answer: %w", err)
+		return fmt.Errorf("datalog: serialise answer: %w", err)
 	}
 	sum := sha256.Sum256(b)
 	a.bytes, a.hash = b, "sha256:"+hex.EncodeToString(sum[:])
@@ -51,7 +51,7 @@ func (a *Answer) seal() error {
 }
 
 // UnmarshalJSON reads an answer as it travels and seals it again, so an answer
-// decoded on the client, or read back from a served artifact, has the bytes and
+// decoded on the client, or read back from storage, has the bytes and
 // the hash the server's had.
 func (a *Answer) UnmarshalJSON(b []byte) error {
 	type plain Answer // no methods: a plain decode, not this one again

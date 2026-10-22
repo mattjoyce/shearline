@@ -1,4 +1,4 @@
-package query
+package datalog
 
 import (
 	"context"
@@ -7,9 +7,9 @@ import (
 )
 
 // ErrTooLarge marks an evaluation refused for its size: the tuples it derived encode
-// to more than the bound. Asking about fewer instants, through a narrower projection
-// or with a more selective rule is the remedy; asking again unchanged will fail again.
-var ErrTooLarge = errors.New("query: derivation too large")
+// to more than the bound. A more selective rule or a smaller base is the remedy;
+// asking again unchanged will fail again.
+var ErrTooLarge = errors.New("datalog: derivation too large")
 
 // TooLarge is the refusal itself: the relation that crossed the bound, and the
 // measure, counted over every derived relation as the tuples' text.
@@ -21,27 +21,55 @@ type TooLarge struct {
 }
 
 func (e *TooLarge) Error() string {
-	return fmt.Sprintf("derivation too large: %d derived tuples encode to more than %d bytes (max_read_bytes), at %s",
+	return fmt.Sprintf("derivation too large: %d derived tuples encode to more than %d bytes (Options.MaxBytes), at %s",
 		e.Tuples, e.MaxBytes, e.Relation)
 }
 
 func (e *TooLarge) Is(target error) bool { return target == ErrTooLarge }
 
-// relation is a set of tuples with insertion order and lazily built indexes, one per
-// argument position a join has asked for.
+// relation is a set of tuples with insertion order and indexes, one per argument
+// position. A derived relation builds an index lazily, the first time a join asks for
+// one. A base relation is frozen when its Base is built: every index exists then and
+// nothing writes to it afterwards, so evaluations running at once may share it.
 type relation struct {
 	tuples []Tuple
 	set    map[string]bool
 	idx    map[int]map[string][]int
 	idxLen int
+	frozen bool
+	arity  int // set when frozen
 }
 
 func newRelation() *relation {
 	return &relation{set: map[string]bool{}}
 }
 
+// freeze builds the index for every argument position and marks the relation
+// read-only. Adding to a frozen relation is a programming error, so add panics on it.
+func (r *relation) freeze(arity int) {
+	r.arity = arity
+	r.idx, r.idxLen = map[int]map[string][]int{}, len(r.tuples)
+	for pos := 0; pos < arity; pos++ {
+		r.idx[pos] = r.index(pos)
+	}
+	r.frozen = true
+}
+
+// index groups the tuples' positions by the key of their argument at pos.
+func (r *relation) index(pos int) map[string][]int {
+	by := map[string][]int{}
+	for i, t := range r.tuples {
+		k := t[pos].key()
+		by[k] = append(by[k], i)
+	}
+	return by
+}
+
 // add puts t in the relation and reports whether it was new.
 func (r *relation) add(t Tuple) bool {
+	if r.frozen {
+		panic("datalog: add to a frozen relation")
+	}
 	k := t.key()
 	if r.set[k] {
 		return false
@@ -53,19 +81,19 @@ func (r *relation) add(t Tuple) bool {
 
 func (r *relation) has(t Tuple) bool { return r.set[t.key()] }
 
-// candidates is the indexes of the tuples whose argument pos is c. The index is
-// built on first use and dropped when the relation grows.
+// candidates is the indexes of the tuples whose argument pos is c. A derived
+// relation's index is built on first use and dropped when the relation grows. A
+// frozen relation's indexes all exist already and are only read here.
 func (r *relation) candidates(pos int, c Const) []int {
+	if r.frozen {
+		return r.idx[pos][c.key()]
+	}
 	if r.idx == nil || r.idxLen != len(r.tuples) {
 		r.idx, r.idxLen = map[int]map[string][]int{}, len(r.tuples)
 	}
 	by, ok := r.idx[pos]
 	if !ok {
-		by = map[string][]int{}
-		for i, t := range r.tuples {
-			k := t[pos].key()
-			by[k] = append(by[k], i)
-		}
+		by = r.index(pos)
 		r.idx[pos] = by
 	}
 	return by[c.key()]
@@ -77,14 +105,27 @@ type Result struct {
 	relations map[string]*relation
 }
 
+// Options bounds and shapes one evaluation.
+type Options struct {
+	// MaxBytes is a bound over every derived tuple's JSON text, intermediate relations
+	// included, since derived relations can be larger than the input. Zero is no
+	// bound; over it, Evaluate returns *TooLarge.
+	MaxBytes int
+	// Proofs records, for each derived tuple, the first derivation that produced it.
+	// It touches the hot loop, so it is off unless asked for.
+	Proofs bool
+}
+
 // Evaluate runs a plan over a base to its fixpoint, stratum by stratum, semi-naive
 // within each: after the first round only the tuples new in the last round are
-// joined again. It reads values and writes nothing. Two bounds hold it: the deadline
-// on ctx, and maxBytes over the text of every tuple it derives, intermediate
-// relations included, since a query's derived relations can be larger than its input
-// (a before/2 over every instant). Zero is no bound; over it, *TooLarge.
-func Evaluate(ctx context.Context, plan Plan, base Base, maxBytes int) (Result, error) {
-	ev := &evaluator{ctx: ctx, db: map[string]*relation{}, maxBytes: maxBytes}
+// joined again. It reads values and writes nothing, and the base is never changed, so
+// calls may share one. The deadline on ctx and opts.MaxBytes bound it. A base built
+// under a schema other than the plan's is ErrInvalid.
+func Evaluate(ctx context.Context, plan Plan, base Base, opts Options) (Result, error) {
+	if err := plan.accepts(base); err != nil {
+		return Result{}, err
+	}
+	ev := &evaluator{ctx: ctx, db: map[string]*relation{}, opts: opts}
 	for name, rel := range base.relations {
 		ev.db[name] = rel
 	}
@@ -104,8 +145,9 @@ type evaluator struct {
 	db    map[string]*relation
 	steps int
 
-	maxBytes, bytes, tuples int
-	over                    *TooLarge
+	opts          Options
+	bytes, tuples int
+	over          *TooLarge
 }
 
 // stratum evaluates one stratum's rules to a fixpoint.
@@ -180,8 +222,8 @@ func (ev *evaluator) count(relation string, t Tuple) {
 	}
 	ev.tuples++
 	ev.bytes += n
-	if ev.maxBytes > 0 && ev.bytes > ev.maxBytes && ev.over == nil {
-		ev.over = &TooLarge{Relation: relation, Tuples: ev.tuples, Bytes: ev.bytes, MaxBytes: ev.maxBytes}
+	if ev.opts.MaxBytes > 0 && ev.bytes > ev.opts.MaxBytes && ev.over == nil {
+		ev.over = &TooLarge{Relation: relation, Tuples: ev.tuples, Bytes: ev.bytes, MaxBytes: ev.opts.MaxBytes}
 	}
 }
 
@@ -194,8 +236,8 @@ func (ev *evaluator) join(r rule, i int, env map[string]Const, delta *relation, 
 	}
 	l := r.ordered[i]
 	switch {
-	case l.Compare != nil:
-		if holds(*l.Compare, env) {
+	case l.Compare != nil || isBuiltin(l.Atom.Name):
+		if ev.guardHolds(l, env) {
 			return ev.join(r, i+1, env, delta, deltaPos, emit)
 		}
 		return nil
@@ -215,7 +257,7 @@ func (ev *evaluator) join(r rule, i int, env map[string]Const, delta *relation, 
 		}
 		if ev.steps++; ev.steps%stepsPerDeadlineCheck == 0 {
 			if err := ev.ctx.Err(); err != nil {
-				return fmt.Errorf("query: evaluation stopped: %w", err)
+				return fmt.Errorf("datalog: evaluation stopped: %w", err)
 			}
 		}
 		bound, ok := bind(rel.tuples[idx], l.Atom.Args, env)
@@ -322,4 +364,12 @@ func holds(c Comparison, env map[string]Const) bool {
 	default:
 		return ok && cmp >= 0
 	}
+}
+
+// guardHolds evaluates a comparison or a built-in literal under env.
+func (ev *evaluator) guardHolds(l Literal, env map[string]Const) bool {
+	if l.Compare != nil {
+		return holds(*l.Compare, env)
+	}
+	return holdsBuiltin(l, env)
 }
