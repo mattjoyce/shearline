@@ -165,8 +165,11 @@ type Policy struct { /* plan, frozen standing base, rule-set IDs */ }
 func Load(standing []datalog.Fact, sets ...datalog.RuleSet) (Policy, error)
 
 // Decide is total: nil error with Allow=false is deny by absence; a non-nil error is
-// also a deny, and Decision.Allow is false whenever err != nil. A *TooLarge from the
-// engine is wrapped with the remedy: narrow the grants reachable from this principal.
+// also a deny, and Decision.Allow is false whenever err != nil. A request with an
+// empty principal, action or resource is refused by the schema's checks and so denied
+// with an error, not special-cased. A cancelled ctx is an error before any work. A
+// *TooLarge from the engine is wrapped with the remedy: narrow the grants reachable
+// from this principal. Decision.RuleSets is the policy's own copy, never a shared slice.
 func (p Policy) Decide(ctx context.Context, req Request) (Decision, error)
 
 // Permitted is the prefixes, not the resources: the grant patterns principal holds for
@@ -185,14 +188,20 @@ type Decision struct {
 func Role(principal, role string) datalog.Fact
 func Inherits(role, parent string) datalog.Fact
 func Grant(role, action, prefix string) datalog.Fact
-func Deny(principal, action, resource string) datalog.Fact   // a fact for a consumer rule set to carry, see deny/3
+func Deny(principal, action, resource string) datalog.Fact   // a denied/3 fact; rbac.dl derives deny/3 from it
 
 // Schema is the PARC base relations. Consumers' standing facts use role, inherits,
-// grants; a request supplies principal, action, resource, context.
-var Schema = datalog.Schema{Arities: map[string]int{
-    "principal": 1, "action": 1, "resource": 1, "context": 2,
-    "role": 2, "inherits": 2, "grants": 3,
-}}
+// grants, denied; a request supplies principal, action, resource, context. Every
+// argument of every relation but context's value is checked to be a non-empty string
+// (Schema.Checks): an empty principal, role, action or prefix is a missing value, not a
+// wildcard, and is refused at Load or at the request, never silently matched.
+var Schema = datalog.Schema{
+    Arities: map[string]int{
+        "principal": 1, "action": 1, "resource": 1, "context": 2,
+        "role": 2, "inherits": 2, "grants": 3, "denied": 3,
+    },
+    Checks: /* nonEmptyString on every position above except context's value */,
+}
 
 // RBAC is the bundled rule set, rbac.dl, embedded and parsed once at package init
 // (var rbac = mustRuleSet(...)): a broken asset fails at process start, never at the
@@ -203,9 +212,10 @@ func RBAC() datalog.RuleSet
 `rbac.dl` (name `rbac`, version 1):
 
 ```
-% deny(P, A, R) is the consumer's hook: declared here, defined by a later rule set or
-% not at all. Absent, nothing is denied by it.
-deny/3.
+% deny(P, A, R): the consumer's denials. The base relation denied/3 carries them as
+% facts (policy.Deny); a later rule set may add rules to deny/3 for denials that are
+% derived rather than listed.
+deny(P, A, R) :- denied(P, A, R).
 
 holds(P, R) :- role(P, R).
 holds(P, R) :- holds(P, Q), inherits(Q, R).
@@ -237,6 +247,7 @@ Vocabulary rule: "importer", "source", "projection", "tenant" never appear in th
 | `Options{MaxBytes, Proofs}` | plus `MaxSteps` | bytes bound what is derived, not the work to derive it |
 | `grants(..., "timeline/*")` | `grants(..., "timeline/")`, matched by `prefix/2` | `*` is not a prefix; glob matching is a later built-in if a consumer needs it |
 | `Compile` keeps Anam's reachability check | removed | declared-and-undefined is the hook mechanism |
+| `deny/3` declared only | `denied/3` base facts, `deny/3` derived from them | a Deny fact is a fact; a relation cannot be both base and declared (found by the policy teammate) |
 
 ## Review
 
