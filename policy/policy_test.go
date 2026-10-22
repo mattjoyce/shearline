@@ -31,12 +31,19 @@ func fixture() []datalog.Fact {
 
 func mustLoad(t *testing.T, standing []datalog.Fact, sets ...datalog.RuleSet) Policy {
 	t.Helper()
-	p, err := Load(standing, sets...)
+	return mustLoadConfig(t, Config{Standing: standing, Sets: sets})
+}
+
+func mustLoadConfig(t *testing.T, cfg Config) Policy {
+	t.Helper()
+	p, err := Load(cfg)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	return p
 }
+
+func rbacOnly() []datalog.RuleSet { return []datalog.RuleSet{RBAC()} }
 
 func ruleSet(t *testing.T, name, text string) datalog.RuleSet {
 	t.Helper()
@@ -91,7 +98,8 @@ func TestDecide(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			sets := append([]datalog.RuleSet{RBAC()}, tc.sets...)
-			d, err := mustLoad(t, tc.standing, sets...).Decide(context.Background(), tc.req)
+			p := mustLoadConfig(t, Config{Standing: tc.standing, Sets: sets, Context: map[string]datalog.Kind{"hour": datalog.KindNumber}})
+			d, err := p.Decide(context.Background(), tc.req)
 			if err != nil {
 				t.Fatalf("Decide: %v", err)
 			}
@@ -122,15 +130,15 @@ func TestDecide_EmptyRequestFieldsFailClosed(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			d, err := p.Decide(context.Background(), tc.req)
-			if !errors.Is(err, datalog.ErrInvalid) || d.Allow {
-				t.Fatalf("Decide = %+v, %v; want a deny with ErrInvalid", d, err)
+			if !errors.Is(err, ErrRequest) || d.Allow {
+				t.Fatalf("Decide = %+v, %v; want a deny with ErrRequest", d, err)
 			}
 		})
 	}
 }
 
 func TestDecide_EmptyContextValueIsAllowed(t *testing.T) {
-	p := mustLoad(t, fixture(), RBAC())
+	p := mustLoadConfig(t, Config{Standing: fixture(), Sets: rbacOnly(), Context: map[string]datalog.Kind{"note": datalog.KindString}})
 	d, err := p.Decide(context.Background(), Request{Principal: "ana", Action: "read", Resource: "timeline/bp",
 		Context: map[string]datalog.Const{"note": datalog.String("")}})
 	if err != nil || !d.Allow {
@@ -181,7 +189,7 @@ func TestDecide_ProofOnAllow(t *testing.T) {
 
 func TestLoad_RBACAloneSucceeds(t *testing.T) {
 	// deny/3 is declared and undefined: the empty relation, not a compile error.
-	if _, err := Load(nil, RBAC()); err != nil {
+	if _, err := Load(Config{Sets: rbacOnly()}); err != nil {
 		t.Fatalf("Load(RBAC) = %v", err)
 	}
 }
@@ -214,7 +222,7 @@ func TestLoad_Errors(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := Load(tc.standing, tc.sets...)
+			_, err := Load(Config{Standing: tc.standing, Sets: tc.sets})
 			if !errors.Is(err, datalog.ErrInvalid) {
 				t.Fatalf("err = %v, want ErrInvalid", err)
 			}
@@ -338,12 +346,12 @@ func TestRequestFacts_ContextSorted(t *testing.T) {
 
 func TestLoad_RefusesRequestRelationFacts(t *testing.T) {
 	for _, rel := range []string{"principal", "action", "resource"} {
-		_, err := Load([]datalog.Fact{fact(rel, "x")}, RBAC())
+		_, err := Load(Config{Standing: []datalog.Fact{fact(rel, "x")}, Sets: rbacOnly()})
 		if !errors.Is(err, datalog.ErrInvalid) || !strings.Contains(err.Error(), "request relation") {
 			t.Errorf("%s: err = %v", rel, err)
 		}
 	}
-	_, err := Load([]datalog.Fact{{Relation: "context", Tuple: datalog.Tuple{datalog.String("k"), datalog.String("v")}}}, RBAC())
+	_, err := Load(Config{Standing: []datalog.Fact{{Relation: "context", Tuple: datalog.Tuple{datalog.String("k"), datalog.String("v")}}}, Sets: rbacOnly()})
 	if !errors.Is(err, datalog.ErrInvalid) {
 		t.Errorf("context: err = %v", err)
 	}
@@ -381,7 +389,7 @@ func TestSchema_FreshEachCall(t *testing.T) {
 	if _, ok := Schema().Checks["grants"]; !ok {
 		t.Fatal("mutating one Schema() value changed the next")
 	}
-	if _, err := Load([]datalog.Fact{Grant("r", "read", "")}, RBAC()); !errors.Is(err, datalog.ErrInvalid) {
+	if _, err := Load(Config{Standing: []datalog.Fact{Grant("r", "read", "")}, Sets: rbacOnly()}); !errors.Is(err, datalog.ErrInvalid) {
 		t.Fatalf("an empty prefix loaded after Schema() was mutated: %v", err)
 	}
 }
@@ -395,7 +403,7 @@ func TestRBAC_FreshEachCall(t *testing.T) {
 	if b.Program.Rules[0].Head.Name == "tampered" || b.Program.Rules[0].Body[0].Atom.Name == "tampered" || b.Program.Declared["tampered"] != 0 {
 		t.Fatal("RBAC() shares its AST with the caller")
 	}
-	if _, err := Load(fixture(), RBAC()); err != nil {
+	if _, err := Load(Config{Standing: fixture(), Sets: rbacOnly()}); err != nil {
 		t.Fatalf("Load after tampering: %v", err)
 	}
 }
@@ -413,7 +421,7 @@ func TestLoad_RequiresAllowAndPermit(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := Load(nil, tc.sets...)
+			_, err := Load(Config{Sets: tc.sets})
 			if !errors.Is(err, datalog.ErrInvalid) || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("err = %v, want ErrInvalid naming %s", err, tc.want)
 			}
@@ -424,12 +432,12 @@ func TestLoad_RequiresAllowAndPermit(t *testing.T) {
 func TestLoad_RefusesHashMismatch(t *testing.T) {
 	bad := RBAC()
 	bad.Hash = "sha256:0000"
-	if _, err := Load(nil, bad); !errors.Is(err, datalog.ErrInvalid) {
+	if _, err := Load(Config{Sets: []datalog.RuleSet{bad}}); !errors.Is(err, datalog.ErrInvalid) {
 		t.Fatalf("a wrong hash loaded: %v", err)
 	}
 	edited := RBAC()
 	edited.Program.Text += "\n% edited after the hash\n"
-	if _, err := Load(nil, edited); !errors.Is(err, datalog.ErrInvalid) {
+	if _, err := Load(Config{Sets: []datalog.RuleSet{edited}}); !errors.Is(err, datalog.ErrInvalid) {
 		t.Fatalf("edited text loaded: %v", err)
 	}
 }
@@ -628,4 +636,74 @@ func TestDecide_WhyAtScale(t *testing.T) {
 	if took := time.Since(start); took > time.Second {
 		t.Fatalf("a deny over 50,000 principals took %v", took)
 	}
+}
+
+func TestContextDeclaration(t *testing.T) {
+	hour := map[string]datalog.Kind{"hour": datalog.KindNumber}
+	late, _ := datalog.Number("23")
+	denyLate := ruleSet(t, "late", `deny(P, A, R) :- principal(P), action(A), resource(R), context("hour", H), H > 22.`)
+	base := Request{Principal: "ana", Action: "read", Resource: "timeline/bp"}
+	with := func(c map[string]datalog.Const) Request { r := base; r.Context = c; return r }
+
+	t.Run("declared key of the right kind reaches a rule", func(t *testing.T) {
+		p := mustLoadConfig(t, Config{Standing: fixture(), Sets: []datalog.RuleSet{RBAC(), denyLate}, Context: hour})
+		d, err := p.Decide(context.Background(), with(map[string]datalog.Const{"hour": late}))
+		if err != nil || d.Allow {
+			t.Fatalf("Decide = %+v, %v; want the late deny to fire", d, err)
+		}
+	})
+	t.Run("undeclared key is ErrRequest", func(t *testing.T) {
+		p := mustLoadConfig(t, Config{Standing: fixture(), Sets: rbacOnly(), Context: hour})
+		d, err := p.Decide(context.Background(), with(map[string]datalog.Const{"minute": late}))
+		if !errors.Is(err, ErrRequest) || d.Allow || !strings.Contains(err.Error(), `"minute"`) {
+			t.Fatalf("Decide = %+v, %v", d, err)
+		}
+	})
+	t.Run("wrong kind is ErrRequest naming both kinds", func(t *testing.T) {
+		p := mustLoadConfig(t, Config{Standing: fixture(), Sets: rbacOnly(), Context: hour})
+		_, err := p.Decide(context.Background(), with(map[string]datalog.Const{"hour": datalog.String("23")}))
+		if !errors.Is(err, ErrRequest) || !strings.Contains(err.Error(), "number") || !strings.Contains(err.Error(), "string") || !strings.Contains(err.Error(), `"hour"`) {
+			t.Fatalf("err = %v", err)
+		}
+	})
+	t.Run("rule naming an undeclared key fails at Load", func(t *testing.T) {
+		_, err := Load(Config{Standing: fixture(), Sets: []datalog.RuleSet{RBAC(), denyLate}})
+		if !errors.Is(err, datalog.ErrInvalid) || !strings.Contains(err.Error(), "not declared in Config.Context") {
+			t.Fatalf("err = %v", err)
+		}
+	})
+	t.Run("rule comparing hour to a string constant fails at Load", func(t *testing.T) {
+		bad := ruleSet(t, "bad", `deny(P, A, R) :- principal(P), action(A), resource(R), context("hour", "23").`)
+		_, err := Load(Config{Standing: fixture(), Sets: []datalog.RuleSet{RBAC(), bad}, Context: hour})
+		if !errors.Is(err, datalog.ErrInvalid) || !strings.Contains(err.Error(), "declared number") {
+			t.Fatalf("err = %v", err)
+		}
+	})
+	t.Run("nil Context refuses any key and accepts none", func(t *testing.T) {
+		p := mustLoad(t, fixture(), RBAC())
+		if _, err := p.Decide(context.Background(), with(map[string]datalog.Const{"hour": late})); !errors.Is(err, ErrRequest) {
+			t.Fatalf("err = %v", err)
+		}
+		if d, err := p.Decide(context.Background(), base); err != nil || !d.Allow {
+			t.Fatalf("Decide = %+v, %v", d, err)
+		}
+	})
+	t.Run("a bad declaration is refused at Load", func(t *testing.T) {
+		for name, ctx := range map[string]map[string]datalog.Kind{
+			"empty key": {"": datalog.KindString},
+			"bad kind":  {"hour": datalog.Kind(9)},
+		} {
+			if _, err := Load(Config{Sets: rbacOnly(), Context: ctx}); !errors.Is(err, datalog.ErrInvalid) {
+				t.Errorf("%s: err = %v", name, err)
+			}
+		}
+	})
+	t.Run("the declaration is copied", func(t *testing.T) {
+		decl := map[string]datalog.Kind{"hour": datalog.KindNumber}
+		p := mustLoadConfig(t, Config{Standing: fixture(), Sets: rbacOnly(), Context: decl})
+		delete(decl, "hour")
+		if _, err := p.Decide(context.Background(), with(map[string]datalog.Const{"hour": late})); err != nil {
+			t.Fatalf("a caller mutated the policy's declaration: %v", err)
+		}
+	})
 }

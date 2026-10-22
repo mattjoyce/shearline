@@ -40,39 +40,8 @@ func mustRuleSet(name string, version int, text string) datalog.RuleSet {
 // hook for a consumer's own rule set.
 func RBAC() datalog.RuleSet {
 	s := rbac
-	s.Program = copyProgram(rbac.Program)
+	s.Program = rbac.Program.Clone()
 	return s
-}
-
-// copyProgram is a deep copy: the AST holds pointers, and the package-level rule set must
-// not be reachable through a value a caller holds.
-func copyProgram(p datalog.Program) datalog.Program {
-	out := datalog.Program{Text: p.Text, Declared: make(map[string]int, len(p.Declared))}
-	for k, v := range p.Declared {
-		out.Declared[k] = v
-	}
-	out.Rules = make([]datalog.Rule, len(p.Rules))
-	for i, r := range p.Rules {
-		out.Rules[i] = datalog.Rule{Head: copyAtom(r.Head), Line: r.Line, Body: make([]datalog.Literal, len(r.Body))}
-		for j, l := range r.Body {
-			cl := datalog.Literal{Negated: l.Negated}
-			if l.Atom != nil {
-				a := copyAtom(*l.Atom)
-				cl.Atom = &a
-			}
-			if l.Compare != nil {
-				c := *l.Compare
-				cl.Compare = &c
-			}
-			out.Rules[i].Body[j] = cl
-		}
-	}
-	return out
-}
-
-func copyAtom(a datalog.Atom) datalog.Atom {
-	a.Args = append([]datalog.Term(nil), a.Args...)
-	return a
 }
 
 // requestRelations are the relations only a request may supply.
@@ -97,6 +66,8 @@ type Policy struct {
 	plan datalog.Plan
 	base datalog.Base
 	ids  []string
+
+	context map[string]datalog.Kind // the declared keys; a private copy
 }
 
 // Decision is the answer to one request, with what stood behind it. Proof is why it was
@@ -111,16 +82,24 @@ type Decision struct {
 	RuleSets []string        // the loaded sets' IDs in load order, e.g. "rbac/1 sha256:..."
 }
 
-// Load verifies each rule set against its hash, compiles the sets in order over
-// Schema() and holds the standing facts. The first set is normally RBAC(); the plan
-// must define allow/3 and permit/3. Rule sets are policy, never user input: a later set
-// may add rules to any relation, allow/3 included, and the only promise that survives
-// an arbitrary set is deny by absence. Any error is the consumer's to fix before
-// serving.
+// Config is everything a Policy is built from. Context lists every key a request may
+// carry, with its kind; a request with any other key, or a declared key of another kind,
+// is ErrRequest, and a rule set that names an undeclared key fails at Load. A nil Context
+// declares none: such a policy accepts a request with no context and refuses any key.
+type Config struct {
+	Standing []datalog.Fact
+	Sets     []datalog.RuleSet
+	Context  map[string]datalog.Kind
+}
+
+// Load verifies each rule set against its hash, compiles Sets in order over Schema() and
+// holds Standing. The first set is normally RBAC(); the plan must define allow/3 and
+// permit/3. Rule sets are policy, never user input: a later set may add rules to any
+// relation, allow/3 included, and the only promise that survives an arbitrary set is deny
+// by absence. Any error is the consumer's to fix before serving.
 //
-// A consumer rule that compares a context value must guard its kind: constants of
-// different kinds compare false (and != true), so context("hour", "23") with H > 22
-// does not fire.
+// The context keys and their kinds come only from Config.Context; see it for what a rule
+// or a request may name.
 //
 // The standing facts are sorted (by relation, then by each tuple position's kind and text)
 // before they are held, so a proof is a function of the policy's content and not of the
@@ -128,7 +107,12 @@ type Decision struct {
 //
 // An empty context value is allowed, and becomes a wildcard if a consumer rule feeds it
 // to prefix/2, since the empty prefix matches every resource.
-func Load(standing []datalog.Fact, sets ...datalog.RuleSet) (Policy, error) {
+func Load(cfg Config) (Policy, error) {
+	standing, sets := cfg.Standing, cfg.Sets
+	declared, err := checkContext(cfg.Context)
+	if err != nil {
+		return Policy{}, fmt.Errorf("policy: load: %w", err)
+	}
 	for _, f := range standing {
 		if requestRelations[f.Relation] {
 			return Policy{}, fmt.Errorf("policy: load: %w: a standing fact of %s is a request relation; a standing fact there would speak for every request",
@@ -145,28 +129,33 @@ func Load(standing []datalog.Fact, sets ...datalog.RuleSet) (Policy, error) {
 		programs = append(programs, s.Program)
 		ids[i] = s.ID()
 	}
-	plan, err := datalog.Compile(Schema(), programs...)
+	plan, err := datalog.Compile(schema(declared), programs...)
 	if err != nil {
 		return Policy{}, fmt.Errorf("policy: load: %w", err)
 	}
 	if err := requireRelations(plan); err != nil {
 		return Policy{}, fmt.Errorf("policy: load: %w", err)
 	}
-	b, err := datalog.NewBase(Schema(), standing...)
+	b, err := datalog.NewBase(schema(declared), standing...)
 	if err != nil {
 		return Policy{}, fmt.Errorf("policy: load: %w", err)
 	}
-	return Policy{plan: plan, base: b, ids: ids}, nil
+	return Policy{plan: plan, base: b, ids: ids, context: declared}, nil
 }
 
 // Decide is total: nil error with Allow=false is deny by absence; a non-nil error is
 // also a deny, and Decision.Allow is false whenever err != nil. A *TooLarge from the
 // engine is wrapped with the remedy: narrow the grants reachable from this principal.
 // When the request is well formed and allow is absent, Decision.Why says why.
+// A context key the policy did not declare in Config.Context, or one of the wrong kind, is
+// ErrRequest.
 func (p Policy) Decide(ctx context.Context, req Request) (Decision, error) {
 	d := Decision{RuleSets: append([]string(nil), p.ids...)}
 	if err := ctx.Err(); err != nil {
 		return d, fmt.Errorf("policy: decide: %w", err) // the engine checks at entry, then every 1024 steps
+	}
+	if err := p.checkRequestContext(req.Context); err != nil {
+		return d, fmt.Errorf("policy: decide: %w", err)
 	}
 	base, err := p.base.With(req.facts()...)
 	if err != nil {
@@ -252,6 +241,41 @@ func sortedFacts(facts []datalog.Fact) []datalog.Fact {
 		return len(a) < len(b)
 	})
 	return out
+}
+
+// checkContext copies the declared context and refuses a key or kind that cannot be one.
+func checkContext(in map[string]datalog.Kind) (map[string]datalog.Kind, error) {
+	out := make(map[string]datalog.Kind, len(in))
+	for k, kind := range in {
+		if k == "" {
+			return nil, fmt.Errorf("%w: Config.Context has an empty key", datalog.ErrInvalid)
+		}
+		if kind != datalog.KindString && kind != datalog.KindNumber && kind != datalog.KindBool {
+			return nil, fmt.Errorf("%w: Config.Context key %q has no such kind (%d)", datalog.ErrInvalid, k, kind)
+		}
+		out[k] = kind
+	}
+	return out, nil
+}
+
+// checkRequestContext holds a request's context to the declared keys and kinds. It runs
+// before the facts are built so the error names the key and both kinds.
+func (p Policy) checkRequestContext(c map[string]datalog.Const) error {
+	keys := make([]string, 0, len(c))
+	for k := range c {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		want, ok := p.context[k]
+		if !ok {
+			return fmt.Errorf("%w: context key %q is not declared in Config.Context", ErrRequest, k)
+		}
+		if got := c[k].Kind(); got != want {
+			return fmt.Errorf("%w: context key %q is declared %s, but the request gave a %s", ErrRequest, k, kindName(want), kindName(got))
+		}
+	}
+	return nil
 }
 
 func requireRelations(plan datalog.Plan) error {

@@ -9,8 +9,13 @@ import (
 
 // Schema is the PARC base relations. A consumer's standing facts use role, inherits
 // and grants; a request supplies principal, action, resource and context. Each call
-// returns a fresh value, so no caller can change what later Loads compile against.
-func Schema() datalog.Schema {
+// returns a fresh value, so no caller can change what later Loads compile against. This
+// one declares no context keys, so it refuses any; Load builds its own from Config.Context.
+func Schema() datalog.Schema { return schema(nil) }
+
+// schema is Schema with the context keys a policy declares: context/2 is held to them, so
+// a rule or a request naming any other key, or a declared key at another kind, is refused.
+func schema(declared map[string]datalog.Kind) datalog.Schema {
 	return datalog.Schema{
 		Arities: map[string]int{
 			"principal": 1, "action": 1, "resource": 1, "context": 2,
@@ -18,7 +23,7 @@ func Schema() datalog.Schema {
 		},
 		Checks: map[string]func(datalog.Atom) error{
 			"principal": nonEmptyString, "action": nonEmptyString, "resource": nonEmptyString,
-			"context": nonEmptyString, "role": nonEmptyString, "inherits": nonEmptyString,
+			"context": contextCheck(declared), "role": nonEmptyString, "inherits": nonEmptyString,
 			"grants": nonEmptyString, "denied": nonEmptyString,
 		},
 	}
@@ -77,6 +82,42 @@ func Deny(principal, action, resource string) datalog.Fact {
 
 // facts builds the facts of one request, context keys sorted so the base, and any
 // proof drawn from it, does not depend on map order.
+// kindName is a constant kind in words, for a message.
+func kindName(k datalog.Kind) string {
+	switch k {
+	case datalog.KindString:
+		return "string"
+	case datalog.KindNumber:
+		return "number"
+	case datalog.KindBool:
+		return "boolean"
+	}
+	return fmt.Sprintf("kind(%d)", k)
+}
+
+// contextCheck holds context(Key, Value) to the declared keys. The key must be a
+// non-empty string and declared; a constant value must be of the declared kind. A variable
+// passes in either position, since only a constant can be wrong.
+func contextCheck(declared map[string]datalog.Kind) func(datalog.Atom) error {
+	return func(a datalog.Atom) error {
+		if len(a.Args) != 2 || a.Args[0].IsVar() {
+			return nil
+		}
+		if err := nonEmptyString(datalog.Atom{Name: a.Name, Args: a.Args[:1]}); err != nil {
+			return err
+		}
+		key := a.Args[0].Const.Text()
+		want, ok := declared[key]
+		if !ok {
+			return fmt.Errorf("context key %q is not declared in Config.Context", key)
+		}
+		if v := a.Args[1]; !v.IsVar() && v.Const.Kind() != want {
+			return fmt.Errorf("context key %q is declared %s, but this value is a %s", key, kindName(want), kindName(v.Const.Kind()))
+		}
+		return nil
+	}
+}
+
 func (r Request) facts() []datalog.Fact {
 	fs := []datalog.Fact{
 		fact("principal", r.Principal),
