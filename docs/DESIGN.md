@@ -384,8 +384,13 @@ above.
    microseconds, and a second evaluation mode would be a thing to keep consistent for a scale that
    does not exist. Revisit only when a consumer has many thousands of principals and asks often.
 
+6. **A relation is a value or a builder, never both (2026-10-22).** Hickey's cut, not base-versus-
+   derived: during evaluation every relation is a builder that accepts tuples; when `Evaluate`
+   returns every relation is sealed into a value with no write method, base relations with their
+   indexes, derived ones without. `Base` and `Result` hold values only, so concurrent reads,
+   `Proof` and `WhyNot` are safe by construction and the `frozen` flag, its panic and the scan
+   workaround go. A pure refactor gated by the benchmark: kept only within noise.
+
 ## Open, for Matt
 
-1. Whether `relation` should be two types, a frozen base relation and a growing derived one,
-   instead of one struct with a `frozen` bit whose `add` panics on the wrong mode (module panel
-   H5). A refactor with no bug behind it.
+None. The six questions above were decided with Matt on 2026-10-22.
