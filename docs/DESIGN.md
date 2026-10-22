@@ -17,6 +17,10 @@ type Kind; const KindString, KindNumber, KindBool      // unchanged
 type Const; func String(string) Const; func Bool(bool) Const
 func Number(lexeme string) (Const, error)      // finite only; -0 is 0
 func Int(int64) Const; func Float(float64) (Const, error)   // the same constants Number makes
+// The string domain is valid UTF-8: the lexer refuses a literal that is not, and
+// NewBase/With refuse a fact that is not, since JSON would fold invalid bytes into
+// U+FFFD and two distinct constants would share an Answer hash. Numbers are float64:
+// an integer beyond 2^53 is not an exact identifier; use a string for one.
 type Tuple []Const                                     // unchanged
 type Term, Atom, Comparison, Literal, Rule, Program    // unchanged
 func Parse(text string) (Program, error)               // unchanged
@@ -63,7 +67,11 @@ type Options struct {
 // MaxSteps its termination would rest on the caller's deadline alone. *TooLarge
 // carries Bound, BoundBytes or BoundSteps, and its message starts "datalog:".
 // A base that holds a relation the plan derives is ErrInvalid at Evaluate, as is one
-// that lacks a relation the plan reads.
+// that lacks a relation the plan reads. Compatibility between a plan and a base is by
+// shape only, names and arities: a base built under a schema with different Checks
+// passes, because its facts were checked by its own schema at NewBase. A caller that
+// wants one set of checks everywhere compiles and builds from one Schema value, as
+// policy.Load does.
 func Evaluate(ctx context.Context, plan Plan, base Base, opts Options) (Result, error)
 
 func (r Result) Relation(name string) (Answer, error)  // unchanged
@@ -151,9 +159,11 @@ type RuleSet struct {
 func NewRuleSet(name string, version int, text string) (RuleSet, error)
 // ID is "name/version hash", the string a decision carries.
 func (s RuleSet) ID() string
-// Verify recomputes the hash over Program.Text; a RuleSet built or edited by hand
-// whose Hash does not match is ErrInvalid. policy.Load calls it, so the ID in a
-// decision is the hash of the rules that ran.
+// Verify holds a RuleSet to its text: the hash is recomputed over Program.Text, and
+// the text is parsed again and must equal Program, so the rules that run are the rules
+// that were hashed. A set built or edited by hand that fails either is ErrInvalid.
+// policy.Load calls it, so the ID in a decision is the hash of the rules that ran.
+// Compile also deep-copies every program, so a caller's later edits reach no plan.
 func (s RuleSet) Verify() error
 
 // Arity reports a relation's arity in the plan, base or derived, and whether it exists.
