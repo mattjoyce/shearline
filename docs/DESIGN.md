@@ -15,8 +15,8 @@ var ErrSyntax, ErrInvalid, ErrTooLarge error          // the three; *TooLarge st
 
 type Kind; const KindString, KindNumber, KindBool      // unchanged
 type Const; func String(string) Const; func Bool(bool) Const
-func Number(lexeme string) (Const, error)      // finite only; -0 is 0
-func Int(int64) Const; func Float(float64) (Const, error)   // the same constants Number makes
+func Number(lexeme string) (Const, error)      // finite only (else ErrSyntax: it is a lexeme); -0 is 0
+func Int(int64) Const; func Float(float64) (Const, error)   // the same constants Number makes; Float refuses NaN/Inf with ErrInvalid (no lexeme to blame)
 // The string domain is valid UTF-8: the lexer refuses a literal that is not, and
 // NewBase/With refuse a fact that is not, since JSON would fold invalid bytes into
 // U+FFFD and two distinct constants would share an Answer hash. Numbers are float64:
@@ -136,8 +136,9 @@ type RuleFailure struct {
     Because []Absence          // why Failed found nothing, when it is a derived positive atom
     Blocked *Proof             // when Failed is a negation that held: the tuple that blocked
 }
-// WhyNot explains a tuple's absence. ok is false when t is in the result (ask Proof) or
-// the evaluation ran without Options.Proofs. maxDepth bounds the recursion; 0 means the
+// WhyNot explains a tuple's absence. ok is false when t is in the result (ask Proof),
+// when name is not a relation of the plan or t is not its arity, or when the evaluation
+// ran without Options.Proofs. maxDepth bounds the recursion; 0 means the
 // engine's default (whyNotDepth = 8, enough for any policy rule set, small enough that a
 // pathological recursion stays cheap).
 func (r Result) WhyNot(name string, t Tuple, maxDepth int) (a Absence, ok bool)
@@ -155,7 +156,9 @@ type RuleSet struct {
     Hash    string   // "sha256:<hex>" over Text
     Program Program
 }
-// NewRuleSet parses text and hashes it.
+// NewRuleSet parses text and hashes it, and names the program "name/version". The name
+// must be non-empty with no whitespace, slash or semicolon (ID is "name/version hash"
+// and decisions join several); the version must not be negative. Else ErrInvalid.
 func NewRuleSet(name string, version int, text string) (RuleSet, error)
 // ID is "name/version hash", the string a decision carries.
 func (s RuleSet) ID() string
@@ -190,12 +193,13 @@ guard; `eval.go`'s `join` evaluates it where it evaluates a `Comparison`.
 
 ### Evaluation invariants
 
-- **Concurrency.** A `Base` and a `Plan` are immutable once built and safe for concurrent
-  `Evaluate` calls; a `Result` is read-only and safe to share. Base relations are *frozen* at
-  `NewBase`/`With`: every per-position index is built then, `relation.candidates` never mutates a
-  frozen relation, and a frozen relation's `add` panics (a programming error, not a condition).
-  Derived relations are created per evaluation and keep the lazy index. Anam's lazy-index
-  mutation on shared base relations would race under a concurrent `Policy`.
+- **Concurrency.** A `Base`, a `Plan` and a `Result` are values: immutable once built and safe
+  to share across goroutines. A relation is either a value (`relation`: read methods only, no
+  `add`) or a builder (`relBuilder`: the place tuples are added, held only by the evaluator while
+  `Evaluate` runs). Base relations are sealed with an index per argument position; derived
+  relations are sealed without indexes when `Evaluate` returns and answer lookups by scanning.
+  Nothing a caller can hold has a write method, so the safety is structural (decision 6). Anam's
+  lazy-index mutation on shared relations would have raced under a concurrent `Policy`.
 - **Determinism.** `Evaluate` is a function of (plan, base, options): same inputs, same `Answer`
   hashes and the same `Proof` for every tuple. Every walk over a map on the derivation path
   (`merge` over the round's delta above all) iterates in sorted relation order, since insertion
@@ -314,21 +318,22 @@ bottom-up with a per-request budget, so a rule that derived every principal's ro
 the budget on strangers and trip the byte bound on a large standing base (found by the module
 panel, confirmed at 50,000 principals).
 
+The rules, as in `policy/rbac.dl` (that file is authoritative; its comments say why each rule is
+seeded by the request):
+
 ```
-% deny(P, A, R): the consumer's denials. The base relation denied/3 carries them as
-% facts (policy.Deny); a later rule set may add rules to deny/3 for denials that are
-% derived rather than listed.
 deny(P, A, R) :- principal(P), action(A), resource(R), denied(P, A, R).
 
 holds(P, R) :- principal(P), role(P, R).
 holds(P, R) :- holds(P, Q), inherits(Q, R).
 
-% permit(P, A, Pat): P holds a role that grants A over resources with prefix Pat.
 permit(P, A, Pat) :- principal(P), action(A), holds(P, Role), grants(Role, A, Pat).
 
-% allow(P, A, R): the request's resource is under a permitted prefix and not denied.
 allow(P, A, R) :- permit(P, A, Pat), resource(R), prefix(Pat, R), not deny(P, A, R).
 ```
+
+A consumer set may add rules to `deny/3`; one that reads `allow/3` is a negation cycle and is
+refused at Load.
 
 `Decide` evaluates with `Options{MaxBytes: maxDecisionBytes, MaxSteps: maxDecisionSteps, Proofs:
 true}` and reads `allow(principal, action, resource)`. Both are named constants, invariants not
