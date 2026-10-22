@@ -431,3 +431,66 @@ func TestLoad_RefusesHashMismatch(t *testing.T) {
 		t.Fatalf("edited text loaded: %v", err)
 	}
 }
+
+func TestLoad_ProofIsIndependentOfFactOrder(t *testing.T) {
+	forward := []datalog.Fact{
+		Role("alice", "reader"), Role("alice", "admin"),
+		Grant("reader", "read", "timeline/"), Grant("admin", "read", "timeline/"),
+	}
+	reversed := make([]datalog.Fact, len(forward))
+	for i, f := range forward {
+		reversed[len(forward)-1-i] = f
+	}
+	req := Request{Principal: "alice", Action: "read", Resource: "timeline/bp"}
+	var proofs []datalog.Proof
+	for _, standing := range [][]datalog.Fact{forward, reversed} {
+		d, err := mustLoad(t, standing, RBAC()).Decide(context.Background(), req)
+		if err != nil || !d.Allow {
+			t.Fatalf("Decide = %+v, %v", d, err)
+		}
+		proofs = append(proofs, d.Proof)
+	}
+	if !reflect.DeepEqual(proofs[0], proofs[1]) {
+		t.Fatalf("proofs differ by fact order:\n%+v\n%+v", proofs[0], proofs[1])
+	}
+	if forward[0].Tuple[1].Text() != "reader" {
+		t.Fatal("Load sorted the caller's slice")
+	}
+}
+
+func TestPermitted_ThirdColumnContract(t *testing.T) {
+	tests := []struct {
+		name string
+		text string
+	}{
+		{"number", `permit(P, A, 7) :- principal(P), action(A).`},
+		{"empty string", `permit(P, A, "") :- principal(P), action(A).`},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			p := mustLoad(t, fixture(), RBAC(), ruleSet(t, "bad", tc.text))
+			got, err := p.Permitted(context.Background(), "bo", "read")
+			if !errors.Is(err, datalog.ErrInvalid) || got != nil {
+				t.Fatalf("got %v, %v; want nil and ErrInvalid", got, err)
+			}
+		})
+	}
+}
+
+func TestErrRequest(t *testing.T) {
+	p := mustLoad(t, fixture(), RBAC())
+	_, err := p.Decide(context.Background(), Request{Action: "read", Resource: "x"})
+	if !errors.Is(err, ErrRequest) || !errors.Is(err, datalog.ErrInvalid) {
+		t.Fatalf("Decide err = %v", err)
+	}
+	_, err = p.Permitted(context.Background(), "", "read")
+	if !errors.Is(err, ErrRequest) || !errors.Is(err, datalog.ErrInvalid) {
+		t.Fatalf("Permitted err = %v", err)
+	}
+	// A broken policy is not the caller's fault.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := p.Decide(ctx, Request{Principal: "ana", Action: "read", Resource: "x"}); errors.Is(err, ErrRequest) {
+		t.Fatalf("a cancelled context is not a malformed request: %v", err)
+	}
+}

@@ -76,6 +76,11 @@ func copyAtom(a datalog.Atom) datalog.Atom {
 }
 
 // requestRelations are the relations only a request may supply.
+// ErrRequest marks a request the policy refused as malformed (an empty principal, action
+// or resource, say). Errors that wrap it are the caller's to fix, a 4xx; any other error
+// is a broken policy or engine, a 5xx. The underlying ErrInvalid stays reachable.
+var ErrRequest = errors.New("policy: malformed request")
+
 var requestRelations = map[string]bool{"principal": true, "action": true, "resource": true, "context": true}
 
 // Request is the PARC shape: who, does what, to which, under what.
@@ -112,6 +117,10 @@ type Decision struct {
 // different kinds compare false (and != true), so context("hour", "23") with H > 22
 // does not fire.
 //
+// The standing facts are sorted (by relation, then by each tuple position's kind and text)
+// before they are held, so a proof is a function of the policy's content and not of the
+// order the caller listed it in.
+//
 // An empty context value is allowed, and becomes a wildcard if a consumer rule feeds it
 // to prefix/2, since the empty prefix matches every resource.
 func Load(standing []datalog.Fact, sets ...datalog.RuleSet) (Policy, error) {
@@ -121,6 +130,7 @@ func Load(standing []datalog.Fact, sets ...datalog.RuleSet) (Policy, error) {
 				datalog.ErrInvalid, f.Relation)
 		}
 	}
+	standing = sortedFacts(standing)
 	programs := make([]datalog.Program, 0, len(sets))
 	ids := make([]string, len(sets))
 	for i, s := range sets {
@@ -154,7 +164,7 @@ func (p Policy) Decide(ctx context.Context, req Request) (Decision, error) {
 	}
 	base, err := p.base.With(req.facts()...)
 	if err != nil {
-		return d, fmt.Errorf("policy: decide: %w", err)
+		return d, fmt.Errorf("policy: decide: %w: %w", ErrRequest, err)
 	}
 	res, err := datalog.Evaluate(ctx, p.plan, base, datalog.Options{
 		MaxBytes: maxDecisionBytes, MaxSteps: maxDecisionSteps, Proofs: true,
@@ -162,17 +172,10 @@ func (p Policy) Decide(ctx context.Context, req Request) (Decision, error) {
 	if err != nil {
 		return d, evalError("decide", err)
 	}
-	ans, err := res.Relation("allow")
-	if err != nil {
-		return d, fmt.Errorf("policy: decide: %w", err)
-	}
+	// Proofs are on, so a recorded proof is membership in allow/3.
 	want := datalog.Tuple{datalog.String(req.Principal), datalog.String(req.Action), datalog.String(req.Resource)}
-	for _, t := range ans.Tuples {
-		if sameTuple(t, want) {
-			d.Allow = true
-			d.Proof, _ = res.Proof("allow", want)
-			return d, nil
-		}
+	if proof, ok := res.Proof("allow", want); ok {
+		d.Allow, d.Proof = true, proof
 	}
 	return d, nil
 }
@@ -180,13 +183,17 @@ func (p Policy) Decide(ctx context.Context, req Request) (Decision, error) {
 // Permitted is the prefixes, not the resources: the grant patterns principal holds for
 // action, the third column of permit/3, sorted and deduplicated. deny/3 does not apply
 // (deny is per concrete resource).
+//
+// The third column of permit/3 is a contract the consumer's rule sets must keep: a
+// non-empty string. A permit tuple for this principal and action that breaks it makes
+// Permitted return ErrInvalid, not a listing with a blank or a number in it.
 func (p Policy) Permitted(ctx context.Context, principal, action string) ([]string, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("policy: permitted: %w", err)
 	}
 	base, err := p.base.With(fact("principal", principal), fact("action", action))
 	if err != nil {
-		return nil, fmt.Errorf("policy: permitted: %w", err)
+		return nil, fmt.Errorf("policy: permitted: %w: %w", ErrRequest, err)
 	}
 	res, err := datalog.Evaluate(ctx, p.plan, base, datalog.Options{MaxBytes: maxDecisionBytes, MaxSteps: maxDecisionSteps})
 	if err != nil {
@@ -202,6 +209,9 @@ func (p Policy) Permitted(ctx context.Context, principal, action string) ([]stri
 		if !sameTuple(t[:2], datalog.Tuple{datalog.String(principal), datalog.String(action)}) {
 			continue
 		}
+		if t[2].Kind() != datalog.KindString || t[2].Text() == "" {
+			return nil, fmt.Errorf("policy: permitted: %w: permit/3 has a third column that is not a non-empty string (%q)", datalog.ErrInvalid, t[2].Text())
+		}
 		out = append(out, t[2].Text())
 	}
 	sort.Strings(out)
@@ -211,6 +221,27 @@ func (p Policy) Permitted(ctx context.Context, principal, action string) ([]stri
 // requireRelations refuses a plan that lacks the relations Decide and Permitted read, at
 // the arity they read them: a set without RBAC would otherwise deny everything silently,
 // or panic in Permitted on a tuple of the wrong width.
+// sortedFacts is a sorted copy of facts; the caller's slice is left alone.
+func sortedFacts(facts []datalog.Fact) []datalog.Fact {
+	out := append([]datalog.Fact(nil), facts...)
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].Relation != out[j].Relation {
+			return out[i].Relation < out[j].Relation
+		}
+		a, b := out[i].Tuple, out[j].Tuple
+		for k := 0; k < len(a) && k < len(b); k++ {
+			if a[k].Kind() != b[k].Kind() {
+				return a[k].Kind() < b[k].Kind()
+			}
+			if a[k].Text() != b[k].Text() {
+				return a[k].Text() < b[k].Text()
+			}
+		}
+		return len(a) < len(b)
+	})
+	return out
+}
+
 func requireRelations(plan datalog.Plan) error {
 	for _, r := range []struct {
 		name string
