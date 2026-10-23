@@ -86,6 +86,11 @@ type Decision struct {
 // carry, with its kind; a request with any other key, or a declared key of another kind,
 // is ErrRequest, and a rule set that names an undeclared key fails at Load. A nil Context
 // declares none: such a policy accepts a request with no context and refuses any key.
+//
+// A declared key is one a request may carry, not one it must: the declaration is a
+// schema, not attestation. A key a rule relies on (a tenant, a network, an MFA state)
+// is the consumer's to require before Decide, or to require positively in the rule,
+// since a rule that reads its absence through negation holds when the caller omits it.
 type Config struct {
 	Standing []datalog.Fact
 	Sets     []datalog.RuleSet
@@ -261,6 +266,11 @@ func checkContext(in map[string]datalog.Kind) (map[string]datalog.Kind, error) {
 // checkRequestContext holds a request's context to the declared keys and kinds. It runs
 // before the facts are built so the error names the key and both kinds.
 func (p Policy) checkRequestContext(c map[string]datalog.Const) error {
+	if len(c) > len(p.context) {
+		// More keys than are declared: at least one is undeclared, and this says so
+		// before the keys are collected and sorted.
+		return fmt.Errorf("%w: %w: the request carries %d context keys, but Config.Context declares %d", ErrRequest, datalog.ErrInvalid, len(c), len(p.context))
+	}
 	keys := make([]string, 0, len(c))
 	for k := range c {
 		keys = append(keys, k)
@@ -269,10 +279,10 @@ func (p Policy) checkRequestContext(c map[string]datalog.Const) error {
 	for _, k := range keys {
 		want, ok := p.context[k]
 		if !ok {
-			return fmt.Errorf("%w: context key %q is not declared in Config.Context", ErrRequest, k)
+			return fmt.Errorf("%w: %w: context key %q is not declared in Config.Context", ErrRequest, datalog.ErrInvalid, k)
 		}
 		if got := c[k].Kind(); got != want {
-			return fmt.Errorf("%w: context key %q is declared %s, but the request gave a %s", ErrRequest, k, kindName(want), kindName(got))
+			return fmt.Errorf("%w: %w: context key %q is declared %s, but the request gave a %s", ErrRequest, datalog.ErrInvalid, k, kindName(want), kindName(got))
 		}
 	}
 	return nil
@@ -290,6 +300,10 @@ func requireRelations(plan datalog.Plan) error {
 			return fmt.Errorf("%w: no rule set defines %s/%d; load RBAC() first or define it", datalog.ErrInvalid, name, want)
 		case got != want:
 			return fmt.Errorf("%w: %s is %s/%d, but a decision reads %s/%d", datalog.ErrInvalid, name, name, got, name, want)
+		case !plan.Defines(name):
+			// Declared and defined nowhere would be an empty relation, and a policy that
+			// denies everything without a rule saying so.
+			return fmt.Errorf("%w: %s/%d is declared but no rule defines it; load RBAC() first or define it", datalog.ErrInvalid, name, want)
 		}
 	}
 	return nil

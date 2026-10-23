@@ -104,6 +104,8 @@ func TestLoad_Errors(t *testing.T) {
 		{"numeric standing fact", []datalog.Fact{{Relation: "role", Tuple: datalog.Tuple{seven, datalog.String("admin")}}}, []datalog.RuleSet{RBAC()}},
 		{"boolean standing fact", []datalog.Fact{{Relation: "grants", Tuple: datalog.Tuple{datalog.String("r"), datalog.String("read"), datalog.Bool(true)}}}, []datalog.RuleSet{RBAC()}},
 		{"numeric constant in a rule set", nil, []datalog.RuleSet{RBAC(), numConst}},
+		// Declared and defined nowhere would serve a silent deny-all.
+		{"allow and permit declared but not defined", nil, []datalog.RuleSet{ruleSet(t, "decl", `allow/3. permit/3.`)}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

@@ -145,7 +145,9 @@ func (r Result) WhyNot(name string, t Tuple, maxDepth int) (a Absence, ok bool)
 
 // Both Proof and Absence render: String() is an indented derivation for a log or an
 // operator; MarshalJSON emits relation, tuple, rule as {set, line, text}, and body or
-// rules recursively, never the parser's AST.
+// rules recursively, never the parser's AST. A proof writes each (relation, tuple)
+// once; a later occurrence is {relation, tuple, rule: null, shown: true}, as the text
+// says "(shown above)", so a document is linear in the derivation.
 func (p Proof) String() string;   func (p Proof) MarshalJSON() ([]byte, error)
 func (a Absence) String() string; func (a Absence) MarshalJSON() ([]byte, error)
 

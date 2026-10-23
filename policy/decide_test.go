@@ -237,6 +237,18 @@ func TestErrRequest(t *testing.T) {
 	if !errors.Is(err, ErrRequest) || !errors.Is(err, datalog.ErrInvalid) {
 		t.Fatalf("Permitted err = %v", err)
 	}
+	// A context key the policy did not declare, or of the wrong kind, is the caller's
+	// fault too, and ErrInvalid stays reachable as the doc on ErrRequest promises.
+	p = mustLoad(t, fixture(), RBAC())
+	for _, c := range []map[string]datalog.Const{
+		{"unknown": datalog.String("x")},
+		{"unknown": datalog.String("x"), "other": datalog.String("y")},
+	} {
+		_, err = p.Decide(context.Background(), Request{Principal: "ana", Action: "read", Resource: "x", Context: c})
+		if !errors.Is(err, ErrRequest) || !errors.Is(err, datalog.ErrInvalid) {
+			t.Fatalf("Decide with context %v: err = %v", c, err)
+		}
+	}
 	// A broken policy is not the caller's fault.
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

@@ -124,7 +124,8 @@ allow("ana", "read", "timeline/secret") is not derived
 - **Extend with your own rules.** Add a rule set after `RBAC()` in `Config.Sets` to define
   denials, add roles, or read context. Rule sets are policy, never user input.
 - **List what a principal holds.** `Permitted(ctx, principal, action)` returns the grant prefixes
-  from the same rules that gate requests. It does not apply `deny`, which is per concrete resource.
+  from the same rules that gate requests. It does not apply `deny`, which is per concrete resource,
+  and it carries no context, so it is discovery, not a gate: `Decide` every resource you then act on.
   To list who may do something, loop over your principals and call `Decide`.
 - **Render a receipt.** `Proof` and `Why` print as indented text and marshal to compact JSON.
 - **See it embedded.** `examples/logsvc` is a worked example: a log service whose roles and

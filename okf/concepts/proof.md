@@ -49,7 +49,7 @@ So a receipt reads `rbac/1:19  allow(P, A, R) :- ...`. The hash is not in the pr
 
 # Rendering
 
-`String()` is an indented tree, one tuple per line, `set:line text` on the right or `fact`. `MarshalJSON` writes `{relation, tuple, rule: {set, line, text} or null, body}` and never the parser's AST. The JSON tree is written out in full, shared parts included.
+`String()` is an indented tree, one tuple per line, `set:line text` on the right or `fact`. `MarshalJSON` writes `{relation, tuple, rule: {set, line, text} or null, body}` and never the parser's AST. A tuple proved earlier in the same document is not written out again: it is `{relation, tuple, rule: null, shown: true}`, and its proof is the first in the document with that relation and tuple, so the JSON is linear in the derivation however much of it is shared, as the text is.
 
 # Related
 
