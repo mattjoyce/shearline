@@ -138,7 +138,8 @@ type Absence struct {
 // maxDepth nested Because levels; Truncated is set where the cut fell and on every
 // Absence above it. A goal already explained in the same Absence is a cycle, not a cut:
 // it is left with an empty Because and does not set Truncated. A failed positive atom
-// over a base relation gets an Absence with no Rules, "no such fact". Derived relations
+// over a base relation gets an Absence with nil Rules, "no such fact"; one over a derived
+// relation none of whose heads unify gets empty Rules, "no rule's head matches". Derived relations
 // are scanned, not indexed, since a shared Result's lazy index would race.
 type RuleFailure struct {
     Rule    *Rule              // a copy, as in Proof

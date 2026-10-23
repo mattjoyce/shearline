@@ -15,7 +15,7 @@ A policy you cannot interrogate is one you will stop trusting. When `allow` is n
 | Type | Field | Meaning |
 |---|---|---|
 | `Absence` | `Relation`, `Goal` | The goal; a position the caller left open is a variable |
-| | `Rules []RuleFailure` | One per rule whose head unifies with the goal; empty for a base relation ("no such fact") |
+| | `Rules []RuleFailure` | One per rule whose head unifies with the goal; nil for a base relation ("no such fact"), empty for a derived relation no head unifies with ("no rule's head matches") |
 | | `Truncated` | The walk hit a limit; what is shown is still true |
 | `RuleFailure` | `Rule` | A copy, as in [proof](/concepts/proof.md) |
 | | `Bound` | Variable bindings when the walk stopped |

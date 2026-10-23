@@ -24,7 +24,8 @@ no vocabulary of its own: a resource name is an opaque string, and you bring eve
 
 Status: pre-1.0, the API may change. No consumer has imported it yet; the first two will be
 [Anam](https://github.com/mattjoyce/anam), whose Datalog evaluator it was cleaved from, and
-[Ductile](https://github.com/mattjoyce/ductile).
+[Ductile](https://github.com/mattjoyce/ductile), whose token scopes `examples/ductile` already
+models, with a parity test against Ductile's own semantics.
 
 ## Try it in a minute
 
