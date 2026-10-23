@@ -9,3 +9,4 @@ okf_version: "0.1"
 * [decisions](decisions/index.md) - The six decisions made with Matt.
 * [reviews](reviews/index.md) - The three reviews and what they changed.
 * [standards](standards/index.md) - Engineering standards and CI gates.
+* [examples](examples/index.md) - Worked examples of embedding the module.

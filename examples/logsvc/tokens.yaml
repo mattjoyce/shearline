@@ -1,0 +1,16 @@
+# tokens.yaml: which token holds which roles.
+#
+# In the real service this file changes at run time, rewritten whenever /mint, /grant,
+# /revoke or /expire succeeds, and then reloaded through Guard.Reload in load.go. This
+# example only reads it.
+# A token may hold several roles. A role named here must be defined in rbac.yaml, or the
+# service refuses to start (see matrix.go, Facts).
+#
+# Operator has no token of its own. That is fine: a role is a set of permissions, and a
+# set can be empty of members and still be inherited.
+
+tokens:
+  tok-7f3a: [RO]
+  tok-9c1e: [RW]
+  tok-0b44: [Admin]
+  tok-e210: [RO, Operator]

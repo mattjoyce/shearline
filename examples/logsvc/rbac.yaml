@@ -1,0 +1,29 @@
+# rbac.yaml: the permission matrix of the log service.
+#
+# This file changes when the product changes: a new endpoint, a new role, a role that
+# gains or loses an endpoint. Review it like code, because it is the access policy.
+#
+# A role has two optional lists. `inherits` names the roles whose grants this role also
+# has. `grants` names the endpoints this role may call directly. Write each endpoint once,
+# on the lowest role that has it, and let inheritance carry it upward.
+#
+# Endpoints are matched by prefix (see matrix.go), so no endpoint may be a prefix of
+# another. None of these eight is.
+#
+# Prefix matching also means a grant of /stop would cover a request for /stopall. The
+# service asks Shearline about the route its router matched, never the raw path, so a
+# path that is not in this file is unknown before it is ever a question of permission.
+
+action: call
+
+roles:
+  RO:
+    grants: [/query]
+  RW:
+    inherits: [RO]
+    grants: [/submit]
+  Operator:
+    grants: [/start, /stop]
+  Admin:
+    inherits: [RW, Operator]
+    grants: [/mint, /revoke, /grant, /expire]

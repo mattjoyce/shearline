@@ -127,6 +127,9 @@ allow("ana", "read", "timeline/secret") is not derived
   from the same rules that gate requests. It does not apply `deny`, which is per concrete resource.
   To list who may do something, loop over your principals and call `Decide`.
 - **Render a receipt.** `Proof` and `Why` print as indented text and marshal to compact JSON.
+- **See it embedded.** `examples/logsvc` is a worked example: a log service whose roles and
+  tokens live in two YAML files, with the one function that turns them into facts, a policy
+  swap for run-time changes, and the matrix pinned as a test. Its comments are the tutorial.
 
 ## Reference
 
