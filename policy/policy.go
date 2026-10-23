@@ -209,8 +209,8 @@ func (p Policy) Permitted(ctx context.Context, principal, action string) ([]stri
 	if err != nil {
 		return nil, fmt.Errorf("policy: permitted: %w", err)
 	}
-	out := make([]string, 0, len(ans.Tuples))
-	for _, t := range ans.Tuples {
+	out := make([]string, 0, ans.Len())
+	for _, t := range ans.Tuples() {
 		// A rule set may derive permit tuples for anyone; the listing is this caller's.
 		if !sameTuple(t[:2], datalog.Tuple{datalog.String(principal), datalog.String(action)}) {
 			continue

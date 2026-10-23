@@ -19,7 +19,7 @@ func (a Absence) String() string; func (a Absence) MarshalJSON() ([]byte, error)
 
 # Result.Relation and Answer
 
-`Relation` returns a named relation as an `Answer`: tuples sorted, one serialisation, a sha256 `Hash()`, `Bytes()` as a copy, `Len()`. A relation the program never named is an error, not an empty answer. `Answer` round-trips through JSON (`UnmarshalJSON` seals again), so a client or a store holds the same bytes and hash.
+`Relation` returns a named relation as an `Answer`, a value with nothing to change: `Relation()`, `Tuples()` as a copy, sorted, `Len()`, `Bytes()` as a copy of its one serialisation, a sha256 `Hash()` over it. A relation the program never named is an error, not an empty answer. `Answer` marshals as `Bytes()` and round-trips through JSON (`UnmarshalJSON` admits only an answer as written, sorted with no repeats and one width, and seals it again), so a client or a store holds the same bytes and hash.
 
 # Result.Proof
 

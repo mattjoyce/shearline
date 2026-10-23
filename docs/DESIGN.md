@@ -15,12 +15,18 @@ var ErrSyntax, ErrInvalid, ErrTooLarge error          // the three; *TooLarge st
 
 type Kind; const KindString, KindNumber, KindBool      // unchanged
 type Const; func String(string) Const; func Bool(bool) Const
-func Number(lexeme string) (Const, error)      // finite only (else ErrSyntax: it is a lexeme); -0 is 0
+func Number(lexeme string) (Const, error)      // a JSON number lexeme, finite (else ErrSyntax); -0 is 0
 func Int(int64) Const; func Float(float64) (Const, error)   // the same constants Number makes; Float refuses NaN/Inf with ErrInvalid (no lexeme to blame)
-// The string domain is valid UTF-8: the lexer refuses a literal that is not, and
-// NewBase/With refuse a fact that is not, since JSON would fold invalid bytes into
-// U+FFFD and two distinct constants would share an Answer hash. Numbers are float64:
-// an integer beyond 2^53 is not an exact identifier; use a string for one.
+// The string domain is valid UTF-8: the lexer refuses a literal that is not,
+// NewBase/With refuse a fact that is not, and Compile refuses a hand-built constant
+// that is not, since JSON would fold invalid bytes into U+FFFD and two distinct
+// constants would share an Answer hash. A string literal's escapes are JSON's or
+// Go's: what a JSON encoder writes (\/, a surrogate pair) and what a person writes
+// (\x41, \U0001F600) both read; a lone surrogate reads as neither. Numbers are
+// float64: an integer beyond 2^53 is not an exact identifier; use a string for one.
+// A relation name is a lower-case letter then letters, digits and underscores, and a
+// variable an upper-case letter or underscore then the same, wherever it comes from:
+// Compile holds a hand-built Program and a Schema to it, as the lexer holds text.
 type Tuple []Const                                     // unchanged
 type Term, Atom, Comparison, Literal, Rule, Program    // unchanged
 func Parse(text string) (Program, error)               // unchanged
@@ -74,8 +80,13 @@ type Options struct {
 // policy.Load does.
 func Evaluate(ctx context.Context, plan Plan, base Base, opts Options) (Result, error)
 
-func (r Result) Relation(name string) (Answer, error)  // unchanged
-type Answer                                            // unchanged (sorted tuples, canonical JSON, sha256)
+func (r Result) Relation(name string) (Answer, error)
+// Answer is a value with nothing to change: Relation(), Tuples() (a copy), Len(),
+// Bytes() (a copy of its one serialisation), Hash() ("sha256:" over Bytes). It
+// marshals as Bytes, so what is sent, stored and hashed is one thing; a zero Answer
+// marshals to an error. UnmarshalJSON reads back only an answer as written (a
+// relation name; tuples sorted, no repeats, one width) and seals it again.
+type Answer
 
 // Proof is how one tuple came to be. A base fact has Rule nil and no Body. A derived
 // tuple has the rule that first produced it and, in the rule's written order, the
@@ -159,20 +170,25 @@ type RuleSet struct {
     Program Program
 }
 // NewRuleSet parses text and hashes it, and names the program "name/version". The name
-// must be non-empty with no whitespace, slash or semicolon (ID is "name/version hash"
-// and decisions join several); the version must not be negative. Else ErrInvalid.
+// must be non-empty with no whitespace or control character, slash or semicolon (ID
+// is "name/version hash" and decisions join several); the version must not be
+// negative; the text must not be empty, since Verify would refuse it. Else ErrInvalid.
 func NewRuleSet(name string, version int, text string) (RuleSet, error)
 // ID is "name/version hash", the string a decision carries.
 func (s RuleSet) ID() string
-// Verify holds a RuleSet to its text: the hash is recomputed over Program.Text, and
-// the text is parsed again and must equal Program, so the rules that run are the rules
-// that were hashed. A set built or edited by hand that fails either is ErrInvalid.
+// Verify holds a RuleSet to its identity and its text: the name and version are
+// held to NewRuleSet's rule, the hash is recomputed over Program.Text, and the text
+// is parsed again and must equal Program, so the rules that run are the rules that
+// were hashed. A set built or edited by hand that fails any is ErrInvalid.
 // policy.Load calls it, so the ID in a decision is the hash of the rules that ran.
 // Compile also deep-copies every program, so a caller's later edits reach no plan.
 func (s RuleSet) Verify() error
 
 // Arity reports a relation's arity in the plan, base or derived, and whether it exists.
 func (p Plan) Arity(name string) (int, bool)
+// Defines reports whether some rule has name as its head: a relation only declared
+// has an arity and no rule. policy.Load requires both of allow/3 and permit/3.
+func (p Plan) Defines(name string) bool
 ```
 
 ### Built-ins
@@ -363,7 +379,8 @@ Vocabulary rule: "importer", "source", "projection", "tenant" never appear in th
 
 Luminary panel (Hickey × Armstrong, Ousterhout × Liskov) before any code:
 `docs/reviews/luminary-design-2026-10-22/`. The collation lists each finding and where it landed
-above.
+above. Red/blue file audit at `5fe3a78`: `docs/reviews/file-red-blue-2026-10-22/`, with its
+resolution; the contract above is as amended by it.
 
 ## Decided with Matt
 
