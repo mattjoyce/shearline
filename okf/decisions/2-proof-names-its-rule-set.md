@@ -34,4 +34,4 @@ See [proof](/concepts/proof.md) and [rule-set identity](/concepts/rule-set-ident
 
 [1] [DESIGN.md, Decided with Matt, item 2](../../docs/DESIGN.md)
 [2] [Module panel collation](../../docs/reviews/luminary-module-2026-10-22/00-collation.md)
-[3] [tarski/bundled.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/bundled.go)
+[3] [tarski/bundled.go](https://github.com/mattjoyce/tarski/blob/v0.2.2/bundled.go)

@@ -7,7 +7,7 @@ tags: [go, api, compile, schema]
 timestamp: 2026-10-22T00:00:00Z
 ---
 
-> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.2.0); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
+> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.2.2); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
 
 # Signatures
 
@@ -50,6 +50,6 @@ Reports a relation's arity, base or derived, and whether it exists. A consumer u
 
 # Citations
 
-[1] [tarski/plan.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/plan.go)
+[1] [tarski/plan.go](https://github.com/mattjoyce/tarski/blob/v0.2.2/plan.go)
 [2] [DESIGN.md, Schema and Compile](../../docs/DESIGN.md)
 [3] [Edge audit, finding 6](../../docs/reviews/edge-audit-2026-10-22.md)

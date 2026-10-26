@@ -10,7 +10,7 @@ timestamp: 2026-10-22T00:00:00Z
 
 | Area | Standard |
 |---|---|
-| Language | Go 1.25 or later, one dependency, the tarski engine (our own); no other without a case |
+| Language | Go 1.25 or later, one dependency, the tarski engine (our own); no other without a case. The `logsvc` example is its own module and adds YAML there only |
 | Format | `gofmt` and `goimports` |
 | Lint | `golangci-lint`, `gosec` |
 | Tests | Table-driven, real components, no mocks of the engine |
@@ -24,13 +24,14 @@ timestamp: 2026-10-22T00:00:00Z
 
 # CI gates
 
-`.github/workflows/ci.yml` runs on push to master and on every pull request, with read-only `contents` permission.
+`.github/workflows/ci.yml` runs on push to master and on every pull request, with read-only `contents` permission. The Go module cache is keyed on both `go.sum` files (root and `examples/logsvc`).
 
 1. `gofmt`: fails if `gofmt -l .` prints anything.
 2. `go vet ./...`.
 3. `go test -race -shuffle=on -count=1 -cover ./...`.
 4. `golangci-lint` v2.15.0 via its action.
 5. `gosec -quiet ./...`.
+6. The `logsvc` example, as its own module: `go vet`, `go test -race` and `gosec` from `examples/logsvc`.
 
 # Tests that hold the docs
 

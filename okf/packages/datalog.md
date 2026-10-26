@@ -29,14 +29,14 @@ Evaluation. The caller owns the vocabulary. Nothing in the engine reads a file o
 
 - Import path and package name: `tarski.X` where it was `datalog.X`.
 - Error prefix `tarski:`.
-- Numbers at or above 1e6 print in full, which moves the hash of an answer that carries one. Nothing in the bundled rules or tests does.
+- Numbers are exact decimals, and one at or above 1e6 or below 1e-4 prints in full, which moves the hash of an answer that carries one. Nothing in the bundled rules or tests does.
 - Aggregates exist. `policy.Load` refuses a rule set that uses one (`plan.HasAggregates()`, wrapping `tarski.ErrInvalid`): a decision is per request and aggregates are for queries.
 
 # Invariants the policy layer relies on
 
 - Always terminates; deterministic answers, proofs and hashes. See [proof](/concepts/proof.md).
 - A `Base` and a `Plan` are immutable once built; a `Result` is read-only. See [value and builder](/concepts/value-and-builder.md).
-- Bounds are approximate on bytes, exact on steps. See [per-request evaluation](/concepts/per-request-evaluation.md).
+- Bounds are approximate on bytes, exact on steps. Since v0.2.2 a step is a tuple visited, a rule applied or a built-in called. See [per-request evaluation](/concepts/per-request-evaluation.md).
 
 # Used by
 
@@ -44,6 +44,6 @@ Evaluation. The caller owns the vocabulary. Nothing in the engine reads a file o
 
 # Citations
 
-[1] [tarski README](https://github.com/mattjoyce/tarski/blob/v0.2.0/README.md)
-[2] [tarski docs/DESIGN.md](https://github.com/mattjoyce/tarski/blob/v0.2.0/docs/DESIGN.md)
+[1] [tarski README](https://github.com/mattjoyce/tarski/blob/v0.2.2/README.md)
+[2] [tarski docs/DESIGN.md](https://github.com/mattjoyce/tarski/blob/v0.2.2/docs/DESIGN.md)
 [3] [ENGINE.md](../../docs/ENGINE.md)
