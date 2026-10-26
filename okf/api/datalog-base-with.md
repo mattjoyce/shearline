@@ -1,11 +1,13 @@
 ---
 type: Go API
-title: datalog.NewBase and Base.With
+title: tarski.NewBase and Base.With
 description: "NewBase holds facts under a schema; With adds facts as a new value, sharing untouched relations, and equals NewBase over all the facts."
-resource: github.com/mattjoyce/shearline/datalog.Base.With
+resource: github.com/mattjoyce/tarski.Base.With
 tags: [go, api, base, facts]
 timestamp: 2026-10-22T00:00:00Z
 ---
+
+> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.2.0); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
 
 # Signatures
 
@@ -42,6 +44,6 @@ A policy compiles once and holds its standing base once. Each `Decide` calls `Wi
 
 # Citations
 
-[1] [datalog/base.go](../../datalog/base.go)
+[1] [tarski/base.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/base.go)
 [2] [DESIGN.md, NewBase and With](../../docs/DESIGN.md)
 [3] [Module panel collation](../../docs/reviews/luminary-module-2026-10-22/00-collation.md)

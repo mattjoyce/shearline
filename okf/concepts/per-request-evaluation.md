@@ -6,6 +6,8 @@ tags: [evaluation, bounds, performance, rbac]
 timestamp: 2026-10-22T00:00:00Z
 ---
 
+> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.2.0); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
+
 # The rule
 
 `Decide` evaluates the whole plan over `standing facts + this request's facts` with a fixed budget. Because the budget is per request, every rule that matters must start from something the request supplies: `principal(P)`, `action(A)` or `resource(R)`. Then a decision derives only this principal's world, however many other principals are loaded.
@@ -17,7 +19,7 @@ timestamp: 2026-10-22T00:00:00Z
 | `maxDecisionBytes` | `1 << 20` | A decision over one request should never derive a megabyte; if it does, the grants are wrong, not large |
 | `maxDecisionSteps` | `1 << 22` | A decision is a few joins over one principal's roles; millions of visited tuples is a wrong policy |
 
-Both are named constants, invariants and not knobs. `Decide` also turns on `Proofs`. `Permitted` uses the same two bounds without proofs. Details of the options are in [datalog.Evaluate and Options](/api/datalog-evaluate-options.md).
+Both are named constants, invariants and not knobs. `Decide` also turns on `Proofs`. `Permitted` uses the same two bounds without proofs. Details of the options are in [tarski.Evaluate and Options](/api/datalog-evaluate-options.md).
 
 `MaxBytes` charges unescaped lengths, an estimate of the JSON text. `MaxSteps` is exact: every candidate visited by a join or a negation probe counts. Neither can be crossed with a nil error. A crossing is a `*TooLarge` that names which bound (`Bound` is `MaxBytes` or `MaxSteps`), and `Decide` wraps it with the remedy "narrow the grants reachable from this principal".
 

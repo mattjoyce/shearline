@@ -7,8 +7,8 @@ import (
 	"sort"
 	"sync/atomic"
 
-	"github.com/mattjoyce/shearline/datalog"
 	"github.com/mattjoyce/shearline/policy"
+	"github.com/mattjoyce/tarski"
 	"gopkg.in/yaml.v3"
 )
 
@@ -52,7 +52,7 @@ func LoadSnapshot(matrixPath, tokensPath string) (Snapshot, error) {
 	}
 	p, err := policy.Load(policy.Config{
 		Standing: fs,
-		Sets:     []datalog.RuleSet{policy.RBAC()},
+		Sets:     []tarski.RuleSet{policy.RBAC()},
 	})
 	if err != nil {
 		return Snapshot{}, err

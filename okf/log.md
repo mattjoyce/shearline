@@ -8,3 +8,6 @@
 * **Addition**: [logsvc](/examples/logsvc.md), a worked example of embedding Shearline with YAML-defined roles and tokens; CI now builds and tests it as its own module.
 * **Addition**: [ductile](/examples/ductile.md), SPEC step 7: Ductile's scopes as a policy, parity with Ductile's own semantics pinned as a test; answers open question 5 (no context key).
 * **Addition**: [Red/blue file audit](/reviews/file-red-blue-2026-10-22.md), resolved on master. `Answer` is now immutable with accessors; `Plan.Defines` is new; proof JSON writes a shared sub-proof once; string literals read JSON or Go escapes; `Number` is JSON's grammar.
+
+## 2026-10-26
+* **Change**: The engine moved out to [tarski](/packages/datalog.md) v0.2.0 and the `datalog/` package was deleted. `policy.Load` now refuses rule sets that use aggregates. The engine concept and API entries carry a pointer note; code citations point at the tarski tag. Review citations were repointed to the tarski tag; their text is unchanged.

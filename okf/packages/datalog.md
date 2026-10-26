@@ -1,19 +1,23 @@
 ---
 type: Go Package
-title: Package datalog
-description: "The engine: parse, compile, evaluate, proofs, why-not and hashed rule sets, with no knowledge of what any relation means."
-resource: github.com/mattjoyce/shearline/datalog
-tags: [go, engine, datalog]
-timestamp: 2026-10-22T00:00:00Z
+title: Engine (tarski)
+description: "The engine is no longer a package of this module: it is github.com/mattjoyce/tarski, required at v0.2.2. What it owns and what the policy layer relies on."
+resource: github.com/mattjoyce/tarski
+tags: [go, engine, datalog, tarski]
+timestamp: 2026-10-26T00:00:00Z
 ---
+
+# Where it went
+
+Until 2026-10-26 this was `github.com/mattjoyce/shearline/datalog`. It was cut out, with its history, at c4f75ab into [tarski](https://github.com/mattjoyce/tarski) (package `tarski`), and Shearline now requires `github.com/mattjoyce/tarski` v0.2.2. The `datalog/` directory is gone. The contract is tarski's `docs/DESIGN.md` and `CHANGELOG.md`; this entry only says what Shearline leans on.
 
 # What it owns
 
-Evaluation. The caller owns the vocabulary. Nothing here reads a file or the network, keeps state between calls, or knows what a relation means. It was cleaved from Anam's `internal/query` with the package renamed; error messages are prefixed `datalog:`.
+Evaluation. The caller owns the vocabulary. Nothing in the engine reads a file or the network, keeps state between calls, or knows what a relation means. Error messages are prefixed `tarski:` (they were `datalog:`).
 
 | Area | Owns |
 |---|---|
-| Language | `Parse`, `Program`, `Rule`, `Atom`, `Literal`, `Comparison`, `Term` |
+| Language | `Parse`, `Program`, `Rule`, `Atom`, `Literal`, `Comparison`, `Term`; v0.2 adds `Aggregate` |
 | Validation | `Compile` against a `Schema`: arities, safety, stratification, schema checks |
 | Data | `Const`, `Tuple`, `Fact`, `Base` (`NewBase`, `With`, `Len`) |
 | Evaluation | `Evaluate`, `Options`, `Result`, `Answer` |
@@ -21,34 +25,25 @@ Evaluation. The caller owns the vocabulary. Nothing here reads a file or the net
 | Identity | `RuleSet`, `NewRuleSet`, `ID`, `Verify` |
 | Errors | `ErrSyntax`, `ErrInvalid`, `ErrTooLarge`, `*TooLarge` |
 
-# Public surface, grouped
+# What changed for Shearline in the move
 
-- **Constants**: `String`, `Bool`, `Number`, `Int`, `Float`, `Kind`. See [constants](/concepts/constants.md).
-- **Plan**: `Compile(schema, programs...) (Plan, error)`, `Plan.Arity(name)`. See [Compile and Schema](/api/datalog-compile-schema.md).
-- **Base**: `NewBase`, `Base.With`. See [Base.With](/api/datalog-base-with.md).
-- **Evaluate**: `Evaluate(ctx, plan, base, Options)`. See [Evaluate and Options](/api/datalog-evaluate-options.md).
-- **Results**: `Result.Relation`, `Result.Proof`, `Result.WhyNot`, `Answer` (sorted tuples, canonical JSON, sha256). See [Result.Proof and WhyNot](/api/datalog-result-proof-whynot.md).
-- **Rendering**: `Proof` and `Absence` have `String()` and `MarshalJSON()`.
+- Import path and package name: `tarski.X` where it was `datalog.X`.
+- Error prefix `tarski:`.
+- Numbers at or above 1e6 print in full, which moves the hash of an answer that carries one. Nothing in the bundled rules or tests does.
+- Aggregates exist. `policy.Load` refuses a rule set that uses one (`plan.HasAggregates()`, wrapping `tarski.ErrInvalid`): a decision is per request and aggregates are for queries.
 
-# Invariants
+# Invariants the policy layer relies on
 
-- Always terminates: no function symbols, no built-in produces a value. See [stratified negation](/concepts/stratified-negation.md).
-- Deterministic: same `(plan, base, options)` gives same `Answer` hashes and the same proof for every tuple. See [proof](/concepts/proof.md).
+- Always terminates; deterministic answers, proofs and hashes. See [proof](/concepts/proof.md).
 - A `Base` and a `Plan` are immutable once built; a `Result` is read-only. See [value and builder](/concepts/value-and-builder.md).
-- The plan owns deep copies of its programs; a proof's rule is a copy. See [rule-set identity](/concepts/rule-set-identity.md).
-- The string domain is valid UTF-8 and numbers are finite float64. See [constants](/concepts/constants.md).
 - Bounds are approximate on bytes, exact on steps. See [per-request evaluation](/concepts/per-request-evaluation.md).
-
-# Files
-
-`parse.go` and `lex.go` (language), `plan.go`, `shape.go` and `stratify.go` (compile), `base.go`, `relation.go` and `builder.go` (data), `eval.go`, `bounds.go` and `builtins.go` (evaluation), `proof.go`, `whynot.go` and `render.go` (provenance), `answer.go`, `bundled.go` (rule sets), `term.go` (constants).
 
 # Used by
 
-[Package policy](/packages/policy.md) is the first consumer in the module. Anam and Ductile are the planned external ones.
+[Package policy](/packages/policy.md) is the consumer in this module. Anam and Ductile will import tarski too; when they do, Go resolves them and Shearline to one version.
 
 # Citations
 
-[1] [datalog/doc.go](../../datalog/doc.go)
-[2] [DESIGN.md, Package datalog](../../docs/DESIGN.md)
-[3] [README, Reference](../../README.md)
+[1] [tarski README](https://github.com/mattjoyce/tarski/blob/v0.2.0/README.md)
+[2] [tarski docs/DESIGN.md](https://github.com/mattjoyce/tarski/blob/v0.2.0/docs/DESIGN.md)
+[3] [ENGINE.md](../../docs/ENGINE.md)

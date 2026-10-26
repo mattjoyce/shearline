@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/mattjoyce/shearline/datalog"
 	"github.com/mattjoyce/shearline/policy"
+	"github.com/mattjoyce/tarski"
 )
 
 // Implies is Ductile's scope implication table, transcribed from normalizeScopes in
@@ -83,9 +83,9 @@ var Routes = []Route{
 // Grants is the route table as grants: for each row, the narrowest scope in its list
 // is granted the action on the capability. The wider scopes reach it through Implies.
 // "The narrowest" is the first one Ductile lists, by its own convention.
-func Grants() []datalog.Fact {
+func Grants() []tarski.Fact {
 	seen := map[[3]string]bool{}
-	var out []datalog.Fact
+	var out []tarski.Fact
 	for _, r := range Routes {
 		k := [3]string{r.Scopes[0], r.Action, r.Capability}
 		if seen[k] {
@@ -101,7 +101,7 @@ func Grants() []datalog.Fact {
 // Role fact per token per scope. A token with a scope the lattice and the route table
 // never name is refused, since in Ductile it would be a scope that grants nothing and
 // nobody would notice.
-func Facts(tokens map[string][]string) ([]datalog.Fact, error) {
+func Facts(tokens map[string][]string) ([]tarski.Fact, error) {
 	known := map[string]bool{}
 	for _, im := range Implies {
 		known[im[0]], known[im[1]] = true, true
@@ -111,7 +111,7 @@ func Facts(tokens map[string][]string) ([]datalog.Fact, error) {
 			known[s] = true
 		}
 	}
-	var out []datalog.Fact
+	var out []tarski.Fact
 	for _, im := range Implies {
 		out = append(out, policy.Inherits(im[0], im[1]))
 	}
@@ -139,7 +139,7 @@ func Load(tokens map[string][]string) (policy.Policy, error) {
 	if err != nil {
 		return policy.Policy{}, err
 	}
-	return policy.Load(policy.Config{Standing: fs, Sets: []datalog.RuleSet{policy.RBAC()}})
+	return policy.Load(policy.Config{Standing: fs, Sets: []tarski.RuleSet{policy.RBAC()}})
 }
 
 // Tokens is the three tokens Ductile's CONFIG_REFERENCE.md shows, plus two narrow

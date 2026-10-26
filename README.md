@@ -22,14 +22,22 @@ resource, context.
 Shearline is a library, not a service. It owns no state, reads no file and no network, and knows
 no vocabulary of its own: a resource name is an opaque string, and you bring every fact.
 
-Status: pre-1.0, the API may change. No consumer has imported it yet; the first two will be
-[Anam](https://github.com/mattjoyce/anam), whose Datalog evaluator it was cleaved from, and
-[Ductile](https://github.com/mattjoyce/ductile), whose token scopes `examples/ductile` already
-models, with a parity test against Ductile's own semantics.
+Status: pre-1.0, the API may change. The rule engine is not part of this module: it is
+[tarski](https://github.com/mattjoyce/tarski), a Datalog engine of its own, cut out of Shearline
+with its history and required here at v0.2.2. Shearline is the PARC layer over it. No consumer has
+imported Shearline yet; the first two will be [Anam](https://github.com/mattjoyce/anam), whose
+Datalog evaluator became tarski, and [Ductile](https://github.com/mattjoyce/ductile), whose token
+scopes `examples/ductile` already models, with a parity test against Ductile's own semantics.
+Because tarski is one module, a consumer that imports both resolves to a single engine version,
+and the `Fact` and `RuleSet` types it builds are the ones Shearline accepts. A policy rule set
+cannot use aggregates (`count`, `sum`, `min`, `max`); `Load` refuses it, since a decision is per
+request and aggregates are for queries. Moving to tarski changed two things a v0.1 user can see:
+engine errors start `tarski:` instead of `datalog:`, and numbers at or above 1e6 print in full,
+which changes the hash of an answer that carries one.
 
 ## Try it in a minute
 
-Go 1.25 or later, standard library only.
+Go 1.25 or later. One dependency, our own engine: [tarski](https://github.com/mattjoyce/tarski).
 
 ```
 git clone https://github.com/mattjoyce/shearline && cd shearline
@@ -51,19 +59,19 @@ import (
     "context"
     "fmt"
 
-    "github.com/mattjoyce/shearline/datalog"
     "github.com/mattjoyce/shearline/policy"
+    "github.com/mattjoyce/tarski"
 )
 
 func main() {
     p, err := policy.Load(policy.Config{
-        Standing: []datalog.Fact{
+        Standing: []tarski.Fact{
             policy.Role("ana", "operator"),
             policy.Inherits("operator", "reader"),
             policy.Grant("reader", "read", "timeline/"),
             policy.Deny("ana", "read", "timeline/secret"),
         },
-        Sets: []datalog.RuleSet{policy.RBAC()},
+        Sets: []tarski.RuleSet{policy.RBAC()},
     })
     if err != nil {
         panic(err) // a bad policy never serves
@@ -140,11 +148,12 @@ Every exported name is documented in the source and on
 
 ```
 go doc github.com/mattjoyce/shearline/policy
-go doc github.com/mattjoyce/shearline/datalog
+go doc github.com/mattjoyce/tarski
 ```
 
-`datalog` is the engine: parse, compile, evaluate, proofs, why-not, hashed rule sets. `policy` is
-the PARC layer over it with the bundled `rbac.dl`.
+[`tarski`](https://github.com/mattjoyce/tarski) is the engine: parse, compile, evaluate, proofs,
+why-not, hashed rule sets; its contract is its own `docs/DESIGN.md`. `policy` is the PARC layer
+over it with the bundled `rbac.dl`.
 
 ## Why it is built this way
 
@@ -162,7 +171,7 @@ draft, kept as history. `docs/reviews/` holds the three reviews the module went 
 design-stage panel, a whole-module panel and an adversarial edge audit with fuzzing and oracles,
 each finding tied to the commit that resolved it.
 
-Engineering standards: standard library only, `gofmt` and `goimports`, `golangci-lint`, `gosec`,
+Engineering standards: one dependency (tarski), nothing else, `gofmt` and `goimports`, `golangci-lint`, `gosec`,
 table-driven tests with real components, `go test -race -shuffle=on`, coverage above 80%, functions
 under about 60 lines and files under about 400. CI runs all of it on every push.
 

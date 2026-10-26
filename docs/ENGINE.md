@@ -1,6 +1,13 @@
 # The engine, as its consumers see it
 
-Direction of travel for the Datalog engine that is being cut out of `shearline/datalog` into a
+> **Status, 2026-10-26: the cut is done.** The engine is
+> [github.com/mattjoyce/tarski](https://github.com/mattjoyce/tarski), tagged v0.1.0 and v0.2.0
+> (aggregates), then v0.2.1 and v0.2.2 (fixes), and Shearline now requires v0.2.2 with its `datalog/` package deleted. Its design
+> and changelog live there (`docs/DESIGN.md`, `CHANGELOG.md`). Items 1 and 2 below are shipped;
+> what Shearline did on the tag is recorded at the end. The rest of this file is kept as the
+> consumer's steer it was.
+
+Direction of travel for the Datalog engine that was cut out of `shearline/datalog` into a
 module of its own. Written 2026-10-25 by the Shearline lead, from design conversations with
 Matt, for the agent doing the cut and for anyone deciding what the engine should grow next.
 Shearline is a consumer of the engine, not its owner. This is a consumer's steer.
@@ -43,8 +50,8 @@ must be cheap to call once per request; the bounds must be per request, so the b
 are seeded by the request (the 38,000-principal cliff, `docs/reviews/luminary-module-…`);
 proofs must name their rule set, line and text, because a decision is a receipt; why-not
 must say how far the losing rule got, because a refusal that cannot explain itself is one
-nobody will trust. Policy will never need aggregates, and `policy.Load` should be able to
-refuse a consumer rule set that uses them.
+nobody will trust. Policy will never need aggregates, and `policy.Load` refuses a consumer rule set that uses
+them (done, with tarski v0.2).
 
 **Anam, query.** One evaluation per question over a ledger of thousands of entries. The base
 is `entry/7`, `attr/3`, `closes/1`, materialised from the fold at a watermark. The rules are
@@ -98,7 +105,12 @@ In order, each gated on a consumer actually needing it.
 Not planned: arithmetic, regex, function symbols, mutable state, a file format, a network
 face, any vocabulary.
 
-## What Shearline will do when the module tags
+## What Shearline did when the module tagged
+
+Done on branch `tarski-v0.2`: imports rewritten to `github.com/mattjoyce/tarski`, `datalog/`
+deleted, `examples/logsvc/go.mod` requires tarski as well, README says "one dependency, our own
+engine", `DESIGN.md` § Package `datalog` is a pointer to tarski's contract, `okf/packages/datalog.md`
+points to the module, and `policy.Load` refuses aggregates. The original plan, for the record:
 
 Rewrite imports; replace `datalog/` with the dependency; update `DESIGN.md` § datalog API and
 § evaluation invariants to point at the module's own contract; rewrite `okf/packages/datalog.md`

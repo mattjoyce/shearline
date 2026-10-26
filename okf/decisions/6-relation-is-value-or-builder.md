@@ -32,7 +32,7 @@ See also [Base.With](/api/datalog-base-with.md) and [why-not provenance](/concep
 
 # Citations
 
-[1] [DESIGN.md, Decided with Matt, item 6, and Evaluation invariants](../../docs/DESIGN.md)
+[1] [DESIGN.md, Decided with Matt, item 6](../../docs/DESIGN.md); [tarski docs/DESIGN.md, Evaluation invariants](https://github.com/mattjoyce/tarski/blob/v0.2.0/docs/DESIGN.md)
 [2] [Module panel collation, not-taken list](../../docs/reviews/luminary-module-2026-10-22/00-collation.md)
-[3] [datalog/builder.go](../../datalog/builder.go)
-[4] [datalog/relation.go](../../datalog/relation.go)
+[3] [tarski/builder.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/builder.go)
+[4] [tarski/relation.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/relation.go)

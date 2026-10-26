@@ -6,9 +6,11 @@ tags: [constants, kinds, utf8, numbers]
 timestamp: 2026-10-22T00:00:00Z
 ---
 
+> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.2.0); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
+
 # Kinds
 
-A `datalog.Const` is a string, a number or a boolean, the scalar kinds JSON has. No null, list or object. Kinds sort `KindString < KindNumber < KindBool`, and a constant's identity includes its kind, so the string `"1"` and the number `1` are different constants.
+A `tarski.Const` is a string, a number or a boolean, the scalar kinds JSON has. No null, list or object. Kinds sort `KindString < KindNumber < KindBool`, and a constant's identity includes its kind, so the string `"1"` and the number `1` are different constants.
 
 | Constructor | Notes |
 |---|---|
@@ -50,5 +52,5 @@ A tuple's key is the concatenation of its constants' keys, each with a kind byte
 # Citations
 
 [1] [DESIGN.md, Constants and string domain](../../docs/DESIGN.md)
-[2] [datalog/term.go](../../datalog/term.go)
+[2] [tarski/term.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/term.go)
 [3] [Module panel collation](../../docs/reviews/luminary-module-2026-10-22/00-collation.md)

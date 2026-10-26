@@ -54,5 +54,5 @@ Findings 1 to 5 were fixed on master and the audit's tests adopted as regression
 # Citations
 
 [1] [Edge audit](../../docs/reviews/edge-audit-2026-10-22.md)
-[2] [datalog/fuzz_test.go](../../datalog/fuzz_test.go)
-[3] [datalog/oracle_test.go](../../datalog/oracle_test.go)
+[2] [tarski/fuzz_test.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/fuzz_test.go)
+[3] [tarski/oracle_test.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/oracle_test.go)

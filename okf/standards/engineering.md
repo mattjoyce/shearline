@@ -10,7 +10,7 @@ timestamp: 2026-10-22T00:00:00Z
 
 | Area | Standard |
 |---|---|
-| Language | Go 1.25 or later, standard library only; no new dependency without a case |
+| Language | Go 1.25 or later, one dependency, the tarski engine (our own); no other without a case |
 | Format | `gofmt` and `goimports` |
 | Lint | `golangci-lint`, `gosec` |
 | Tests | Table-driven, real components, no mocks of the engine |
@@ -37,7 +37,7 @@ timestamp: 2026-10-22T00:00:00Z
 - `policy/example_test.go` is a compiled twin of the README program and checks its output, so the README cannot drift from the API.
 - `TestRBAC_Parses` holds the embedded rule set.
 - A seeded property test holds `With` equal to `NewBase` over all the facts. See [Base.With](/api/datalog-base-with.md).
-- Fuzz suites and oracles (`datalog/fuzz_test.go`, `datalog/oracle_test.go`) came from the [edge audit](/reviews/edge-audit-2026-10-22.md).
+- Fuzz suites and oracles (`fuzz_test.go`, `oracle_test.go`, now in tarski) came from the [edge audit](/reviews/edge-audit-2026-10-22.md).
 - A 50,000-principal test holds the [seeded rules](/concepts/per-request-evaluation.md).
 
 # Performance gate

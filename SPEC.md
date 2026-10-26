@@ -1,5 +1,7 @@
 # Shearline — project spec (draft)
 
+> History: this is the original draft. The `datalog` package it describes is now the separate module [tarski](https://github.com/mattjoyce/tarski), required at v0.2.0 (see `docs/ENGINE.md`).
+
 Drafted 2026-10-22 by an agent on Matt's behalf, from a read of Anam's `internal/query` at
 master `bf0b0f9` and the policy survey `reviews/policy-touch-points-2026-10-22.md` (card 223).
 Marked as drafted, for Matt to correct.
@@ -193,7 +195,7 @@ since the module holds no state to corrupt.
 4. Add `NewBase` from facts, `With`, built-ins, proofs, `Options`.
 5. Add `policy` with `rbac.dl` and table-driven tests covering the PARC shape: hierarchy,
    deny-overrides, listing, proof, hash in decision.
-6. Bring back: Anam's `internal/query` becomes a thin layer over `shearline/datalog` — its base,
+6. Bring back: Anam's `internal/query` becomes a thin layer over `shearline/datalog` (history: the engine has since moved to github.com/mattjoyce/tarski, which Anam will import directly) — its base,
    its bundled rules, `Describe`, `Check`, `Run`. The removed ledger tests are the proof the
    extraction preserved behaviour, and `anam query check` against `fold.Snapshot` is the standing
    one. Adding the dependency to Anam's `go.mod` is Matt's call under AGENTS.md; the case is that

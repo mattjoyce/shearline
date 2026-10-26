@@ -5,21 +5,21 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mattjoyce/shearline/datalog"
 	"github.com/mattjoyce/shearline/policy"
+	"github.com/mattjoyce/tarski"
 )
 
 // A policy is built once from standing facts and the bundled RBAC rules, then answers
 // requests. Allowed carries the proof; denied carries why, here a deny/3 fact.
 func Example() {
 	p, err := policy.Load(policy.Config{
-		Standing: []datalog.Fact{
+		Standing: []tarski.Fact{
 			policy.Role("ana", "operator"),
 			policy.Inherits("operator", "reader"),
 			policy.Grant("reader", "read", "timeline/"),
 			policy.Deny("ana", "read", "timeline/secret"),
 		},
-		Sets: []datalog.RuleSet{policy.RBAC()},
+		Sets: []tarski.RuleSet{policy.RBAC()},
 	})
 	if err != nil {
 		panic(err) // a bad policy never serves

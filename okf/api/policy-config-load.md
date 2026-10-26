@@ -11,9 +11,9 @@ timestamp: 2026-10-22T00:00:00Z
 
 ```go
 type Config struct {
-    Standing []datalog.Fact
-    Sets     []datalog.RuleSet
-    Context  map[string]datalog.Kind
+    Standing []tarski.Fact
+    Sets     []tarski.RuleSet
+    Context  map[string]tarski.Kind
 }
 func Load(cfg Config) (Policy, error)
 ```
@@ -41,12 +41,12 @@ func Load(cfg Config) (Policy, error)
 
 ```go
 p, err := policy.Load(policy.Config{
-    Standing: []datalog.Fact{
+    Standing: []tarski.Fact{
         policy.Role("ana", "operator"),
         policy.Inherits("operator", "reader"),
         policy.Grant("reader", "read", "timeline/"),
     },
-    Sets: []datalog.RuleSet{policy.RBAC()},
+    Sets: []tarski.RuleSet{policy.RBAC()},
 })
 ```
 

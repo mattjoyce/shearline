@@ -9,7 +9,7 @@ timestamp: 2026-10-22T00:00:00Z
 
 # Constructors
 
-Each returns a `datalog.Fact` for `Config.Standing`.
+Each returns a `tarski.Fact` for `Config.Standing`.
 
 | Call | Relation | Meaning |
 |---|---|---|
@@ -22,7 +22,7 @@ Each returns a `datalog.Fact` for `Config.Standing`.
 
 # Schema
 
-`policy.Schema()` returns the base relations as a fresh `datalog.Schema` each call.
+`policy.Schema()` returns the base relations as a fresh `tarski.Schema` each call.
 
 | Relation | Arity | Supplied by |
 |---|---|---|

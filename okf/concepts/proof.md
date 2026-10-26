@@ -6,9 +6,11 @@ tags: [proof, determinism, receipt]
 timestamp: 2026-10-22T00:00:00Z
 ---
 
+> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.2.0); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
+
 # What a proof is
 
-`datalog.Proof` is how one tuple came to be: its relation, the tuple, the rule that first produced it, and the proofs of the positive body atoms in the rule's written order.
+`tarski.Proof` is how one tuple came to be: its relation, the tuple, the rule that first produced it, and the proofs of the positive body atoms in the rule's written order.
 
 | Case | `Rule` | `Body` |
 |---|---|---|
@@ -60,6 +62,6 @@ So a receipt reads `rbac/1:19  allow(P, A, R) :- ...`. The hash is not in the pr
 # Citations
 
 [1] [DESIGN.md, Proof contract](../../docs/DESIGN.md)
-[2] [datalog/proof.go](../../datalog/proof.go)
-[3] [datalog/render.go](../../datalog/render.go)
+[2] [tarski/proof.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/proof.go)
+[3] [tarski/render.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/render.go)
 [4] [Design panel collation, finding 1 and correction](../../docs/reviews/luminary-design-2026-10-22/00-collation.md)
