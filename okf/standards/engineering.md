@@ -21,7 +21,7 @@ timestamp: 2026-10-22T00:00:00Z
 | Naming | Relation names lower-case, `snake_case` for multi-word; rule-set files `*.dl`; modules and packages lower-case single words |
 | Vocabulary | The module never uses "importer", "source", "projection" or "tenant" |
 | Licence | Apache 2.0 |
-| Changes | Each tagged release has an entry in `CHANGELOG.md`. The current release is v0.2.1 |
+| Changes | Each tagged release has an entry in `CHANGELOG.md`. The current release is v0.2.2 |
 
 # CI gates
 

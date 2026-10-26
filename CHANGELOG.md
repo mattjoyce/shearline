@@ -3,7 +3,12 @@
 Shearline is pre-1.0 and the API may change. Each entry says what a consumer of the module can see.
 Rule-set hashes and answer hashes are part of that: a change to either is listed here.
 
-## Unreleased
+## [v0.2.2](https://github.com/mattjoyce/shearline/releases/tag/v0.2.2) - 2026-10-26
+
+[Compare v0.2.1...v0.2.2](https://github.com/mattjoyce/shearline/compare/v0.2.1...v0.2.2)
+
+A patch: the engine pin moved to tarski v0.3.2. Shearline's API, answers, hashes and proof
+bytes are unchanged. ([PR #7](https://github.com/mattjoyce/shearline/pull/7))
 
 - **Requires tarski v0.3.2.** Hardening from tarski's RBAC pressure review. No answer, hash,
   proof or step change for accepted input, and the README example prints the same output. A

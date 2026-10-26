@@ -3,7 +3,7 @@
 Fixed API for the first cut. `SPEC.md` says why; this says exactly what. Where the two differ,
 this file wins and the difference is listed under *Deviations from the spec*.
 
-Module `github.com/mattjoyce/shearline`, `go 1.25`, one dependency: the engine, `github.com/mattjoyce/tarski` v0.3.2. One package, `policy`; the engine was the second until it moved to its own module. The current release is v0.2.1; [`CHANGELOG.md`](../CHANGELOG.md) lists what changed between releases.
+Module `github.com/mattjoyce/shearline`, `go 1.25`, one dependency: the engine, `github.com/mattjoyce/tarski` v0.3.2. One package, `policy`; the engine was the second until it moved to its own module. The current release is v0.2.2; [`CHANGELOG.md`](../CHANGELOG.md) lists what changed between releases.
 
 ## The engine: `tarski`
 
