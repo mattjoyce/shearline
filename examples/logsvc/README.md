@@ -16,5 +16,17 @@ go run . tok-9c1e /stop     # one deny, with the reason
 go test ./...
 ```
 
-This directory is its own Go module so that the YAML library stays out of the engine,
-which is standard library only. Its `go.mod` points at the repository it lives in.
+This directory is its own Go module so that the YAML library stays out of the root module,
+whose only dependency is the [tarski](https://github.com/mattjoyce/tarski) engine.
+
+## Which Shearline it builds against
+
+Its `go.mod` has `replace github.com/mattjoyce/shearline => ../..`, so the example always
+builds against the checkout it sits in, never a downloaded copy. That is deliberate for now.
+The only Shearline tag, v0.1.0, predates the move to tarski and does not have the API this
+example uses, so there is no release it could pin instead. The `require` line still says
+`v0.1.0`; Go needs a version there, and the `replace` overrides it. Once a Shearline release
+that depends on tarski is tagged, drop the `replace` and require that tag.
+
+Outside this repository, copy the pattern, not the `go.mod`: `go get
+github.com/mattjoyce/shearline` once that release exists.
