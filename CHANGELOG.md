@@ -3,7 +3,13 @@
 Shearline is pre-1.0 and the API may change. Each entry says what a consumer of the module can see.
 Rule-set hashes and answer hashes are part of that: a change to either is listed here.
 
-## Unreleased
+## [v0.2.1](https://github.com/mattjoyce/shearline/releases/tag/v0.2.1) - 2026-10-26
+
+[Compare v0.2.0...v0.2.1](https://github.com/mattjoyce/shearline/compare/v0.2.0...v0.2.1)
+
+A patch: the engine pin moved, the example builds from the published module, and the repo gained
+this changelog. Shearline's own API, answers, hashes and proof bytes are unchanged.
+([PR #4](https://github.com/mattjoyce/shearline/pull/4), [PR #5](https://github.com/mattjoyce/shearline/pull/5), [PR #6](https://github.com/mattjoyce/shearline/pull/6))
 
 - **Requires tarski v0.3.1.** Both modules moved up from v0.2.2. No answer, hash or proof byte
   changes, and the README example prints the same output. v0.3.0 added demand-driven evaluation
@@ -12,7 +18,10 @@ Rule-set hashes and answer hashes are part of that: a change to either is listed
   order, and builtin refusals name the argument and show the signature. Shearline does not adopt
   demand evaluation here. `Load` already sorts the standing facts.
 - **`examples/logsvc` requires the release.** Its `go.mod` requires Shearline v0.2.0 from the
-  module proxy; the `replace ../..` directive is gone. ([PR #4](https://github.com/mattjoyce/shearline/pull/4))
+  module proxy; the `replace ../..` directive is gone. It stays on v0.2.0 until the next release
+  can be tagged ahead of it; a tag cannot require itself.
+- **`CHANGELOG.md` and README § Changes.** Each release has an entry here, and the design
+  contract, engine plan and okf bundle point to it.
 
 ## [v0.2.0](https://github.com/mattjoyce/shearline/releases/tag/v0.2.0) - 2026-10-26
 
