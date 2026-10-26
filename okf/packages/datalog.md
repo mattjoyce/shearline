@@ -9,7 +9,7 @@ timestamp: 2026-10-26T00:00:00Z
 
 # Where it went
 
-Until 2026-10-26 this was `github.com/mattjoyce/shearline/datalog`. It was cut out, with its history, at c4f75ab into [tarski](https://github.com/mattjoyce/tarski) (package `tarski`), and Shearline now requires `github.com/mattjoyce/tarski` v0.2.2. The `datalog/` directory is gone. The contract is tarski's `docs/DESIGN.md` and `CHANGELOG.md`; this entry only says what Shearline leans on.
+Until 2026-10-26 this was `github.com/mattjoyce/shearline/datalog`. It was cut out, with its history, at c4f75ab into [tarski](https://github.com/mattjoyce/tarski) (package `tarski`), and Shearline now requires `github.com/mattjoyce/tarski` v0.2.2. The `datalog/` directory is gone. The contract is tarski's `docs/DESIGN.md` and `CHANGELOG.md`; this entry only says what Shearline leans on. Shearline v0.2.0 is the first release on tarski; see [CHANGELOG.md](../../CHANGELOG.md).
 
 # What it owns
 
