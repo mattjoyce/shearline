@@ -21,12 +21,10 @@ whose only dependency is the [tarski](https://github.com/mattjoyce/tarski) engin
 
 ## Which Shearline it builds against
 
-Its `go.mod` has `replace github.com/mattjoyce/shearline => ../..`, so the example always
-builds against the checkout it sits in, never a downloaded copy. That is deliberate for now.
-The only Shearline tag, v0.1.0, predates the move to tarski and does not have the API this
-example uses, so there is no release it could pin instead. The `require` line still says
-`v0.1.0`; Go needs a version there, and the `replace` overrides it. Once a Shearline release
-that depends on tarski is tagged, drop the `replace` and require that tag.
+Its `go.mod` requires the released `github.com/mattjoyce/shearline v0.2.0`, the first tag
+that depends on tarski, so the example builds the same way inside and outside this repository.
+To test an unreleased change to the root module against the example, add a temporary
+`replace github.com/mattjoyce/shearline => ../..` to its `go.mod`, and take it out before
+committing.
 
-Outside this repository, copy the pattern, not the `go.mod`: `go get
-github.com/mattjoyce/shearline` once that release exists.
+Outside this repository, copy the `go.mod` as it stands: `go get github.com/mattjoyce/shearline@v0.2.0`.
