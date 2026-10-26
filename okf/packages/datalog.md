@@ -1,7 +1,7 @@
 ---
 type: Go Package
 title: Engine (tarski)
-description: "The engine is no longer a package of this module: it is github.com/mattjoyce/tarski, required at v0.3.1. What it owns and what the policy layer relies on."
+description: "The engine is no longer a package of this module: it is github.com/mattjoyce/tarski, required at v0.3.2. What it owns and what the policy layer relies on."
 resource: github.com/mattjoyce/tarski
 tags: [go, engine, datalog, tarski]
 timestamp: 2026-10-26T00:00:00Z
@@ -9,7 +9,7 @@ timestamp: 2026-10-26T00:00:00Z
 
 # Where it went
 
-Until 2026-10-26 this was `github.com/mattjoyce/shearline/datalog`. It was cut out, with its history, at c4f75ab into [tarski](https://github.com/mattjoyce/tarski) (package `tarski`), and Shearline now requires `github.com/mattjoyce/tarski` v0.3.1. The `datalog/` directory is gone. The contract is tarski's `docs/DESIGN.md` and `CHANGELOG.md`; this entry only says what Shearline leans on. Shearline v0.2.0 is the first release on tarski; see [CHANGELOG.md](../../CHANGELOG.md).
+Until 2026-10-26 this was `github.com/mattjoyce/shearline/datalog`. It was cut out, with its history, at c4f75ab into [tarski](https://github.com/mattjoyce/tarski) (package `tarski`), and Shearline now requires `github.com/mattjoyce/tarski` v0.3.2. The `datalog/` directory is gone. The contract is tarski's `docs/DESIGN.md` and `CHANGELOG.md`; this entry only says what Shearline leans on. Shearline v0.2.0 is the first release on tarski; see [CHANGELOG.md](../../CHANGELOG.md).
 
 # What it owns
 
@@ -45,6 +45,6 @@ Evaluation. The caller owns the vocabulary. Nothing in the engine reads a file o
 
 # Citations
 
-[1] [tarski README](https://github.com/mattjoyce/tarski/blob/v0.3.1/README.md)
-[2] [tarski docs/DESIGN.md](https://github.com/mattjoyce/tarski/blob/v0.3.1/docs/DESIGN.md)
+[1] [tarski README](https://github.com/mattjoyce/tarski/blob/v0.3.2/README.md)
+[2] [tarski docs/DESIGN.md](https://github.com/mattjoyce/tarski/blob/v0.3.2/docs/DESIGN.md)
 [3] [ENGINE.md](../../docs/ENGINE.md)

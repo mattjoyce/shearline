@@ -45,4 +45,4 @@ If a consumer shows segmented names, add `under(Sep, Pat, R)`: true when R equal
 [2] [DESIGN.md, Decision 1](../../docs/DESIGN.md)
 [3] [Edge audit, integration edges](../../docs/reviews/edge-audit-2026-10-22.md)
 [4] [policy/facts.go](../../policy/facts.go)
-[5] [tarski/builtins.go](https://github.com/mattjoyce/tarski/blob/v0.3.1/builtins.go)
+[5] [tarski/builtins.go](https://github.com/mattjoyce/tarski/blob/v0.3.2/builtins.go)

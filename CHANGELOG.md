@@ -3,6 +3,15 @@
 Shearline is pre-1.0 and the API may change. Each entry says what a consumer of the module can see.
 Rule-set hashes and answer hashes are part of that: a change to either is listed here.
 
+## Unreleased
+
+- **Requires tarski v0.3.2.** Hardening from tarski's RBAC pressure review. No answer, hash,
+  proof or step change for accepted input, and the README example prints the same output. A
+  negative `MaxSteps` or `MaxBytes` is now `ErrInvalid`; `policy` passes fixed positive bounds,
+  so a decision cannot reach it. Const JSON decoding is strict about UTF-8; `policy` never decodes
+  a Const, and a request string that is not valid UTF-8 was already refused as `ErrRequest` before
+  evaluation. A refused scan now allocates in proportion to the steps it was charged.
+
 ## [v0.2.1](https://github.com/mattjoyce/shearline/releases/tag/v0.2.1) - 2026-10-26
 
 [Compare v0.2.0...v0.2.1](https://github.com/mattjoyce/shearline/compare/v0.2.0...v0.2.1)

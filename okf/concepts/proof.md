@@ -6,7 +6,7 @@ tags: [proof, determinism, receipt]
 timestamp: 2026-10-22T00:00:00Z
 ---
 
-> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.3.1); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
+> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.3.2); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
 
 # What a proof is
 
@@ -68,7 +68,7 @@ Answers and hashes depend on the set of facts; proofs, witness order and why-not
 # Citations
 
 [1] [DESIGN.md, Proof contract](../../docs/DESIGN.md)
-[2] [tarski/proof.go](https://github.com/mattjoyce/tarski/blob/v0.3.1/proof.go)
-[3] [tarski/render.go](https://github.com/mattjoyce/tarski/blob/v0.3.1/render.go)
+[2] [tarski/proof.go](https://github.com/mattjoyce/tarski/blob/v0.3.2/proof.go)
+[3] [tarski/render.go](https://github.com/mattjoyce/tarski/blob/v0.3.2/render.go)
 [4] [Design panel collation, finding 1 and correction](../../docs/reviews/luminary-design-2026-10-22/00-collation.md)
-[5] [tarski README, What it promises consumers](https://github.com/mattjoyce/tarski/blob/v0.3.1/README.md)
+[5] [tarski README, What it promises consumers](https://github.com/mattjoyce/tarski/blob/v0.3.2/README.md)

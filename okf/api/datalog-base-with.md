@@ -7,7 +7,7 @@ tags: [go, api, base, facts]
 timestamp: 2026-10-22T00:00:00Z
 ---
 
-> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.3.1); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
+> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.3.2); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
 
 # Signatures
 
@@ -44,6 +44,6 @@ A policy compiles once and holds its standing base once. Each `Decide` calls `Wi
 
 # Citations
 
-[1] [tarski/base.go](https://github.com/mattjoyce/tarski/blob/v0.3.1/base.go)
+[1] [tarski/base.go](https://github.com/mattjoyce/tarski/blob/v0.3.2/base.go)
 [2] [DESIGN.md, NewBase and With](../../docs/DESIGN.md)
 [3] [Module panel collation](../../docs/reviews/luminary-module-2026-10-22/00-collation.md)
