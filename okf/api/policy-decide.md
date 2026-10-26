@@ -12,12 +12,12 @@ timestamp: 2026-10-22T00:00:00Z
 ```go
 type Request struct {
     Principal, Action, Resource string
-    Context map[string]datalog.Const // becomes context(Key, Value) facts, keys sorted
+    Context map[string]tarski.Const // becomes context(Key, Value) facts, keys sorted
 }
 type Decision struct {
     Allow    bool
-    Proof    datalog.Proof   // why allowed; zero when denied
-    Why      datalog.Absence // why denied; zero when allowed or on error
+    Proof    tarski.Proof   // why allowed; zero when denied
+    Why      tarski.Absence // why denied; zero when allowed or on error
     RuleSets []string        // the loaded sets' IDs in load order
 }
 func (p Policy) Decide(ctx context.Context, req Request) (Decision, error)

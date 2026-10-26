@@ -1,4 +1,4 @@
 # Go Package
 
-* [Package datalog](datalog.md) - The engine: parse, compile, evaluate, proofs, why-not and hashed rule sets, with no knowledge of what any relation means.
+* [Engine (tarski)](datalog.md) - The engine, now the separate module github.com/mattjoyce/tarski (required at v0.2.0): what it owns and what the policy layer relies on.
 * [Package policy](policy.md) - The PARC layer over the engine: Load, Decide, Permitted, fact constructors and the bundled RBAC rule set.

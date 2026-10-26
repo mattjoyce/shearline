@@ -6,9 +6,11 @@ tags: [whynot, absence, explanation]
 timestamp: 2026-10-22T00:00:00Z
 ---
 
+> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.2.0); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
+
 # The idea
 
-A policy you cannot interrogate is one you will stop trusting. When `allow` is not derived, `Decision.Why` is a `datalog.Absence` built by `Result.WhyNot("allow", tuple, 0)`. It is engine-level: it knows nothing of RBAC. For `rbac.dl` it reads as "no role fact for P", "no grant for A on a held role", "no permitted prefix matches R", or "denied by <proof>". See [decision 3](/decisions/3-a-refusal-explains-itself.md).
+A policy you cannot interrogate is one you will stop trusting. When `allow` is not derived, `Decision.Why` is a `tarski.Absence` built by `Result.WhyNot("allow", tuple, 0)`. It is engine-level: it knows nothing of RBAC. For `rbac.dl` it reads as "no role fact for P", "no grant for A on a held role", "no permitted prefix matches R", or "denied by <proof>". See [decision 3](/decisions/3-a-refusal-explains-itself.md).
 
 # Shape
 
@@ -57,4 +59,4 @@ One engine walk per refusal. Matt accepted that cost for the transparency; part 
 
 [1] [README, refusal example output](../../README.md)
 [2] [DESIGN.md, Absence and WhyNot contract](../../docs/DESIGN.md)
-[3] [datalog/whynot.go](../../datalog/whynot.go)
+[3] [tarski/whynot.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/whynot.go)

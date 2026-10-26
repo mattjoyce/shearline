@@ -35,4 +35,4 @@ See [why-not provenance](/concepts/why-not-provenance.md), [policy.Decide](/api/
 
 [1] [DESIGN.md, Decided with Matt, item 3](../../docs/DESIGN.md)
 [2] [SPEC.md, job stories](../../SPEC.md)
-[3] [datalog/whynot.go](../../datalog/whynot.go)
+[3] [tarski/whynot.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/whynot.go)

@@ -1,11 +1,13 @@
 ---
 type: Go API
-title: datalog.Result, Proof and WhyNot
+title: tarski.Result, Proof and WhyNot
 description: "Result.Relation returns a hashed Answer; Result.Proof returns the first derivation; Result.WhyNot explains an absence; both render as text and JSON."
-resource: github.com/mattjoyce/shearline/datalog.Result
+resource: github.com/mattjoyce/tarski.Result
 tags: [go, api, result, proof, whynot, answer]
 timestamp: 2026-10-22T00:00:00Z
 ---
+
+> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.2.0); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
 
 # Signatures
 
@@ -44,8 +46,8 @@ Neither renders the parser's AST.
 
 # Citations
 
-[1] [datalog/proof.go](../../datalog/proof.go)
-[2] [datalog/whynot.go](../../datalog/whynot.go)
-[3] [datalog/render.go](../../datalog/render.go)
-[4] [datalog/answer.go](../../datalog/answer.go)
+[1] [tarski/proof.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/proof.go)
+[2] [tarski/whynot.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/whynot.go)
+[3] [tarski/render.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/render.go)
+[4] [tarski/answer.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/answer.go)
 [5] [DESIGN.md, Proof, Absence, WhyNot](../../docs/DESIGN.md)

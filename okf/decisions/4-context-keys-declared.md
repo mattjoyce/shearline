@@ -30,7 +30,7 @@ The check sees atoms, not comparisons. `context("hour", H), H > "22"` compiles a
 
 - `Load(standing, sets...)` became `Load(Config)`.
 - `policy.Schema()` alone declares no keys; `Load` builds a schema per policy.
-- Numeric context values should come from `datalog.Int` and `datalog.Float`, which refuse NaN and Inf.
+- Numeric context values should come from `tarski.Int` and `tarski.Float`, which refuse NaN and Inf.
 
 See [declared context](/concepts/declared-context.md), [policy.Load](/api/policy-config-load.md) and [constants](/concepts/constants.md).
 

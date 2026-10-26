@@ -1,11 +1,13 @@
 ---
 type: Go API
-title: datalog.Evaluate and Options
+title: tarski.Evaluate and Options
 description: "Evaluate runs a plan over a base to its fixpoint, semi-naively, bounded by context, MaxBytes and MaxSteps, optionally recording proofs."
-resource: github.com/mattjoyce/shearline/datalog.Evaluate
+resource: github.com/mattjoyce/tarski.Evaluate
 tags: [go, api, evaluate, options, bounds]
 timestamp: 2026-10-22T00:00:00Z
 ---
+
+> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.2.0); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
 
 # Signature
 
@@ -38,6 +40,6 @@ func Evaluate(ctx context.Context, plan Plan, base Base, opts Options) (Result, 
 
 # Citations
 
-[1] [datalog/eval.go](../../datalog/eval.go)
-[2] [datalog/bounds.go](../../datalog/bounds.go)
-[3] [DESIGN.md, Options and Evaluation invariants](../../docs/DESIGN.md)
+[1] [tarski/eval.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/eval.go)
+[2] [tarski/bounds.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/bounds.go)
+[3] [tarski docs/DESIGN.md, Options and Evaluation invariants](https://github.com/mattjoyce/tarski/blob/v0.2.0/docs/DESIGN.md)

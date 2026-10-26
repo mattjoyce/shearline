@@ -1,5 +1,7 @@
 # Shearline — project spec (draft)
 
+> History: this is the original draft. The `datalog` package it describes is now the separate module [tarski](https://github.com/mattjoyce/tarski), required at v0.2.0 (see `docs/ENGINE.md`).
+
 Drafted 2026-10-22 by an agent on Matt's behalf, from a read of Anam's `internal/query` at
 master `bf0b0f9` and the policy survey `reviews/policy-touch-points-2026-10-22.md` (card 223).
 Marked as drafted, for Matt to correct.

@@ -8,7 +8,7 @@ timestamp: 2026-10-22T00:00:00Z
 
 # The rule
 
-`Config.Context` is `map[string]datalog.Kind`. A request whose `Context` carries a key not in it, or a declared key of another kind, is `ErrRequest`. A policy that declares no keys accepts a request with no context and refuses any key. Nothing is inferred and there is no default-permissive state.
+`Config.Context` is `map[string]tarski.Kind`. A request whose `Context` carries a key not in it, or a declared key of another kind, is `ErrRequest`. A policy that declares no keys accepts a request with no context and refuses any key. Nothing is inferred and there is no default-permissive state.
 
 Matt's reason, in his words: "code in the future is mostly AI generated, therefore be explicit." See [decision 4](/decisions/4-context-keys-declared.md).
 
@@ -27,7 +27,7 @@ The rules see context as `context(Key, Value)` facts, keys sorted so the base an
 - **Comparisons are not inferred.** The check sees atoms, not comparisons, so `context("hour", H), H > "22"` compiles and is never true, because `H` is a declared number. The declared kind makes such a rule dead rather than dangerous.
 - **An empty context value is allowed.** If a consumer rule feeds it to `prefix/2` it becomes a wildcard, since the empty prefix matches every resource. Documented on `Load`.
 - **The key must be a non-empty string**, as for every other string position in the schema; only the value of `context/2` may be a number or boolean.
-- Building numeric values safely: use [`datalog.Int` and `datalog.Float`](/concepts/constants.md), which cannot produce NaN.
+- Building numeric values safely: use [`tarski.Int` and `tarski.Float`](/concepts/constants.md), which cannot produce NaN.
 
 # Related
 

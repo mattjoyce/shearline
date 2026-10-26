@@ -6,6 +6,8 @@ tags: [datalog, language, negation, builtins, termination]
 timestamp: 2026-10-22T00:00:00Z
 ---
 
+> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.2.0); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
+
 # The language
 
 Rules, facts, comparisons (`=`, `!=`, `<`, `<=`, `>`, `>=`), negation and relation declarations. A relation name is lower-case, a variable starts upper-case, `_` is anonymous. Constants are double-quoted strings, numbers, `true` and `false`. See [constants](/concepts/constants.md).
@@ -57,12 +59,12 @@ A relation a program declares and nothing defines evaluates as the empty relatio
 
 - [Prefix grants](/concepts/prefix-grants.md) use `prefix/2`.
 - [Per-request evaluation](/concepts/per-request-evaluation.md) states the bounds that complement termination.
-- API: [datalog.Compile and Schema](/api/datalog-compile-schema.md).
+- API: [tarski.Compile and Schema](/api/datalog-compile-schema.md).
 
 # Citations
 
-[1] [DESIGN.md, Built-ins and Evaluation invariants](../../docs/DESIGN.md)
-[2] [datalog/doc.go](../../datalog/doc.go)
-[3] [datalog/plan.go](../../datalog/plan.go)
-[4] [datalog/stratify.go](../../datalog/stratify.go)
-[5] [datalog/builtins.go](../../datalog/builtins.go)
+[1] [tarski docs/DESIGN.md, Built-ins and Evaluation invariants](https://github.com/mattjoyce/tarski/blob/v0.2.0/docs/DESIGN.md)
+[2] [tarski/doc.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/doc.go)
+[3] [tarski/plan.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/plan.go)
+[4] [tarski/stratify.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/stratify.go)
+[5] [tarski/builtins.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/builtins.go)
