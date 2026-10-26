@@ -195,7 +195,7 @@ since the module holds no state to corrupt.
 4. Add `NewBase` from facts, `With`, built-ins, proofs, `Options`.
 5. Add `policy` with `rbac.dl` and table-driven tests covering the PARC shape: hierarchy,
    deny-overrides, listing, proof, hash in decision.
-6. Bring back: Anam's `internal/query` becomes a thin layer over `shearline/datalog` — its base,
+6. Bring back: Anam's `internal/query` becomes a thin layer over `shearline/datalog` (history: the engine has since moved to github.com/mattjoyce/tarski, which Anam will import directly) — its base,
    its bundled rules, `Describe`, `Check`, `Run`. The removed ledger tests are the proof the
    extraction preserved behaviour, and `anam query check` against `fold.Snapshot` is the standing
    one. Adding the dependency to Anam's `go.mod` is Matt's call under AGENTS.md; the case is that

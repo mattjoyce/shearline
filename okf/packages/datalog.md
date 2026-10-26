@@ -1,7 +1,7 @@
 ---
 type: Go Package
 title: Engine (tarski)
-description: "The engine is no longer a package of this module: it is github.com/mattjoyce/tarski, required at v0.2.0. What it owns and what the policy layer relies on."
+description: "The engine is no longer a package of this module: it is github.com/mattjoyce/tarski, required at v0.2.2. What it owns and what the policy layer relies on."
 resource: github.com/mattjoyce/tarski
 tags: [go, engine, datalog, tarski]
 timestamp: 2026-10-26T00:00:00Z
@@ -9,7 +9,7 @@ timestamp: 2026-10-26T00:00:00Z
 
 # Where it went
 
-Until 2026-10-26 this was `github.com/mattjoyce/shearline/datalog`. It was cut out, with its history, at c4f75ab into [tarski](https://github.com/mattjoyce/tarski) (package `tarski`), and Shearline now requires `github.com/mattjoyce/tarski` v0.2.0. The `datalog/` directory is gone. The contract is tarski's `docs/DESIGN.md` and `CHANGELOG.md`; this entry only says what Shearline leans on.
+Until 2026-10-26 this was `github.com/mattjoyce/shearline/datalog`. It was cut out, with its history, at c4f75ab into [tarski](https://github.com/mattjoyce/tarski) (package `tarski`), and Shearline now requires `github.com/mattjoyce/tarski` v0.2.2. The `datalog/` directory is gone. The contract is tarski's `docs/DESIGN.md` and `CHANGELOG.md`; this entry only says what Shearline leans on.
 
 # What it owns
 
@@ -40,7 +40,7 @@ Evaluation. The caller owns the vocabulary. Nothing in the engine reads a file o
 
 # Used by
 
-[Package policy](/packages/policy.md) is the consumer in this module. Anam and Ductile also import tarski, so Go resolves them and Shearline to one version.
+[Package policy](/packages/policy.md) is the consumer in this module. Anam and Ductile will import tarski too; when they do, Go resolves them and Shearline to one version.
 
 # Citations
 

@@ -24,7 +24,7 @@ no vocabulary of its own: a resource name is an opaque string, and you bring eve
 
 Status: pre-1.0, the API may change. The rule engine is not part of this module: it is
 [tarski](https://github.com/mattjoyce/tarski), a Datalog engine of its own, cut out of Shearline
-with its history and required here at v0.2.0. Shearline is the PARC layer over it. No consumer has
+with its history and required here at v0.2.2. Shearline is the PARC layer over it. No consumer has
 imported Shearline yet; the first two will be [Anam](https://github.com/mattjoyce/anam), whose
 Datalog evaluator became tarski, and [Ductile](https://github.com/mattjoyce/ductile), whose token
 scopes `examples/ductile` already models, with a parity test against Ductile's own semantics.
