@@ -8,5 +8,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-// The example tracks the repository it lives in, not the published release.
+// The example tracks the repository it lives in, not a published release: the only tag,
+// v0.1.0, predates the move to tarski. Drop this replace once a tarski-based release is tagged.
 replace github.com/mattjoyce/shearline => ../..

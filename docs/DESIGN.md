@@ -12,8 +12,8 @@ The engine is no longer a package of this module. It lives in
 `shearline/datalog` at c4f75ab with its history, and Shearline requires it at v0.2.2. Its
 public API, built-ins, evaluation invariants, bounds and the error contract are in tarski's own
 `docs/DESIGN.md` and `CHANGELOG.md`; that is the contract now, and this file does not repeat it.
-Error messages are prefixed `tarski:` (they were `datalog:`), and numbers at or above 1e6 print in
-full, which is the one change a Shearline answer hash can see.
+Error messages are prefixed `tarski:` (they were `datalog:`), and numbers at or above 1e6 or below
+1e-4 print in full, which is the one change a Shearline answer hash can see.
 
 What the policy layer relies on, stated here because the rest of this file leans on it:
 `Compile` refuses an unsafe or unstratifiable program; `Evaluate` is a pure function of (plan,
@@ -144,6 +144,8 @@ knobs: `maxDecisionBytes = 1 << 20` because a decision over one request should n
 megabyte, and `maxDecisionSteps = 1 << 22` because a decision is a few joins over one principal's
 roles and a policy that visits millions of tuples for one request is wrong, not large. `Permitted`
 evaluates with `principal` and `action` facts only and reads `permit/3`.
+Since tarski v0.2.2 a step is also charged per rule application and per built-in call, not only
+per tuple visited; the bound is unchanged and the 50,000-principal test still passes under it.
 
 Vocabulary rule: "importer", "source", "projection", "tenant" never appear in the module.
 

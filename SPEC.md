@@ -1,6 +1,6 @@
 # Shearline — project spec (draft)
 
-> History: this is the original draft. The `datalog` package it describes is now the separate module [tarski](https://github.com/mattjoyce/tarski), required at v0.2.0 (see `docs/ENGINE.md`).
+> History: this is the original draft. The `datalog` package it describes is now the separate module [tarski](https://github.com/mattjoyce/tarski), required at v0.2.2 (see `docs/ENGINE.md`). Where this draft says "stdlib only", "two packages" or `shearline/datalog`, read the notes marked History.
 
 Drafted 2026-10-22 by an agent on Matt's behalf, from a read of Anam's `internal/query` at
 master `bf0b0f9` and the policy survey `reviews/policy-touch-points-2026-10-22.md` (card 223).
@@ -91,6 +91,8 @@ The engine evaluates and the policy layer checks `allow(P, A, R)` against the re
 ## Architecture
 
 Two packages, one module, stdlib only.
+
+> History: now one package, `policy`, and one dependency, the tarski engine (v0.2.2). The `datalog` package below was cut out into tarski with its history and deleted from this module; `docs/DESIGN.md` has the current contract.
 
 ### `datalog` — the engine
 
@@ -200,7 +202,7 @@ since the module holds no state to corrupt.
    extraction preserved behaviour, and `anam query check` against `fold.Snapshot` is the standing
    one. Adding the dependency to Anam's `go.mod` is Matt's call under AGENTS.md; the case is that
    Anam loses ~1,000 lines and gains a second user for its engine. Shearline's own `go.mod` stays
-   stdlib-only.
+   stdlib-only. (History: it now requires tarski, the engine itself, and nothing else.)
 7. Ductile: load tokens and config as standing facts, requests as `Request`, and see whether any
    Anam-shaped assumption leaks. If it does, that is a design fault in Shearline, not in Ductile.
 

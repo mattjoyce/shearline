@@ -6,7 +6,7 @@ tags: [evaluation, bounds, performance, rbac]
 timestamp: 2026-10-22T00:00:00Z
 ---
 
-> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.2.0); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
+> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.2.2); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
 
 # The rule
 
@@ -21,7 +21,7 @@ timestamp: 2026-10-22T00:00:00Z
 
 Both are named constants, invariants and not knobs. `Decide` also turns on `Proofs`. `Permitted` uses the same two bounds without proofs. Details of the options are in [tarski.Evaluate and Options](/api/datalog-evaluate-options.md).
 
-`MaxBytes` charges unescaped lengths, an estimate of the JSON text. `MaxSteps` is exact: every candidate visited by a join or a negation probe counts. Neither can be crossed with a nil error. A crossing is a `*TooLarge` that names which bound (`Bound` is `MaxBytes` or `MaxSteps`), and `Decide` wraps it with the remedy "narrow the grants reachable from this principal".
+`MaxBytes` charges unescaped lengths, an estimate of the JSON text. `MaxSteps` is exact: every candidate visited by a join or a negation probe counts, and since tarski v0.2.2 so does every rule application and every built-in call (`prefix` is one). The bundled rules make a handful of each per request, far under the bound. Neither can be crossed with a nil error. A crossing is a `*TooLarge` that names which bound (`Bound` is `MaxBytes` or `MaxSteps`), and `Decide` wraps it with the remedy "narrow the grants reachable from this principal".
 
 # The 38k cliff
 

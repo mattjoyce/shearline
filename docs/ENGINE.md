@@ -2,8 +2,8 @@
 
 > **Status, 2026-10-26: the cut is done.** The engine is
 > [github.com/mattjoyce/tarski](https://github.com/mattjoyce/tarski), tagged v0.1.0 and v0.2.0
-> (aggregates), then v0.2.1 and v0.2.2 (fixes), and Shearline now requires v0.2.2 with its `datalog/` package deleted. Its design
-> and changelog live there (`docs/DESIGN.md`, `CHANGELOG.md`). Items 1 and 2 below are shipped;
+> (aggregates), then v0.2.1 and v0.2.2 (fixes), and Shearline now requires v0.2.2 with its
+> `datalog/` package deleted. Its design and changelog live there (`docs/DESIGN.md`, `CHANGELOG.md`). Items 1 and 2 below are shipped;
 > what Shearline did on the tag is recorded at the end. The rest of this file is kept as the
 > consumer's steer it was.
 
@@ -107,7 +107,7 @@ face, any vocabulary.
 
 ## What Shearline did when the module tagged
 
-Done on branch `tarski-v0.2`: imports rewritten to `github.com/mattjoyce/tarski`, `datalog/`
+Done in PR #1 (merged to master): imports rewritten to `github.com/mattjoyce/tarski`, `datalog/`
 deleted, `examples/logsvc/go.mod` requires tarski as well, README says "one dependency, our own
 engine", `DESIGN.md` § Package `datalog` is a pointer to tarski's contract, `okf/packages/datalog.md`
 points to the module, and `policy.Load` refuses aggregates. The original plan, for the record:
@@ -115,5 +115,5 @@ points to the module, and `policy.Load` refuses aggregates. The original plan, f
 Rewrite imports; replace `datalog/` with the dependency; update `DESIGN.md` § datalog API and
 § evaluation invariants to point at the module's own contract; rewrite `okf/packages/datalog.md`
 and the engine concepts to reference the module; change `examples/logsvc/go.mod`; change the
-README's "standard library only" to "one dependency, our own engine"; tag Shearline v0.2.0.
+README's "standard library only" to "one dependency, our own engine"; tag Shearline v0.2.0. The tag is not cut yet: v0.1.0 is still the only Shearline release, and it predates tarski.
 The policy tests, the example, and every hash in the README are the acceptance check.

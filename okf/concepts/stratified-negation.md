@@ -1,12 +1,12 @@
 ---
 type: Concept
 title: Stratified negation
-description: "What the engine's Datalog is and is not: no function symbols, built-ins as guards, stratified negation, and a hook mechanism for declared-but-undefined relations."
+description: "What the engine's Datalog is and is not: no function symbols, no aggregates in policy, built-ins as guards, stratified negation, and a hook mechanism for declared-but-undefined relations."
 tags: [datalog, language, negation, builtins, termination]
 timestamp: 2026-10-22T00:00:00Z
 ---
 
-> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.2.0); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
+> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.2.2); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
 
 # The language
 
@@ -22,7 +22,7 @@ head(X, Y) :- rel(X, Z), not other(Z), Y > 3.  a rule
 # What it is not
 
 - **No function symbols and no arithmetic in heads.** Together with built-ins that produce no value, the derived relations are finite and evaluation always reaches a fixpoint. This is the termination argument.
-- **No aggregates.**
+- **No aggregates in policy.** The engine has them since tarski v0.2 (`count`, `sum`, `min`, `max`), stratified like negation. `policy.Load` refuses a rule set that uses one, because a decision is per request and an aggregate summarises a relation.
 - **No attribute-style payloads.** Facts are tuples of scalars.
 
 # Safety and stratification
@@ -63,8 +63,8 @@ A relation a program declares and nothing defines evaluates as the empty relatio
 
 # Citations
 
-[1] [tarski docs/DESIGN.md, Built-ins and Evaluation invariants](https://github.com/mattjoyce/tarski/blob/v0.2.0/docs/DESIGN.md)
-[2] [tarski/doc.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/doc.go)
-[3] [tarski/plan.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/plan.go)
-[4] [tarski/stratify.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/stratify.go)
-[5] [tarski/builtins.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/builtins.go)
+[1] [tarski docs/DESIGN.md, Built-ins and Evaluation invariants](https://github.com/mattjoyce/tarski/blob/v0.2.2/docs/DESIGN.md)
+[2] [tarski/doc.go](https://github.com/mattjoyce/tarski/blob/v0.2.2/doc.go)
+[3] [tarski/plan.go](https://github.com/mattjoyce/tarski/blob/v0.2.2/plan.go)
+[4] [tarski/stratify.go](https://github.com/mattjoyce/tarski/blob/v0.2.2/stratify.go)
+[5] [tarski/builtins.go](https://github.com/mattjoyce/tarski/blob/v0.2.2/builtins.go)

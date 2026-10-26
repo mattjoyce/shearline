@@ -7,7 +7,7 @@ tags: [go, api, result, proof, whynot, answer]
 timestamp: 2026-10-22T00:00:00Z
 ---
 
-> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.2.0); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
+> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.2.2); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
 
 # Signatures
 
@@ -46,8 +46,8 @@ Neither renders the parser's AST.
 
 # Citations
 
-[1] [tarski/proof.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/proof.go)
-[2] [tarski/whynot.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/whynot.go)
-[3] [tarski/render.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/render.go)
-[4] [tarski/answer.go](https://github.com/mattjoyce/tarski/blob/v0.2.0/answer.go)
+[1] [tarski/proof.go](https://github.com/mattjoyce/tarski/blob/v0.2.2/proof.go)
+[2] [tarski/whynot.go](https://github.com/mattjoyce/tarski/blob/v0.2.2/whynot.go)
+[3] [tarski/render.go](https://github.com/mattjoyce/tarski/blob/v0.2.2/render.go)
+[4] [tarski/answer.go](https://github.com/mattjoyce/tarski/blob/v0.2.2/answer.go)
 [5] [DESIGN.md, Proof, Absence, WhyNot](../../docs/DESIGN.md)

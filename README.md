@@ -32,8 +32,8 @@ Because tarski is one module, a consumer that imports both resolves to a single 
 and the `Fact` and `RuleSet` types it builds are the ones Shearline accepts. A policy rule set
 cannot use aggregates (`count`, `sum`, `min`, `max`); `Load` refuses it, since a decision is per
 request and aggregates are for queries. Moving to tarski changed two things a v0.1 user can see:
-engine errors start `tarski:` instead of `datalog:`, and numbers at or above 1e6 print in full,
-which changes the hash of an answer that carries one.
+engine errors start `tarski:` instead of `datalog:`, and numbers at or above 1e6 or below 1e-4 print in
+full, which changes the hash of an answer that carries one.
 
 ## Try it in a minute
 
