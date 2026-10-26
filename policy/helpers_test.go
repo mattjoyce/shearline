@@ -3,12 +3,12 @@ package policy
 import (
 	"testing"
 
-	"github.com/mattjoyce/shearline/datalog"
+	"github.com/mattjoyce/tarski"
 )
 
 // fixture: ana is an admin, admin inherits editor, editor inherits reader.
-func fixture() []datalog.Fact {
-	return []datalog.Fact{
+func fixture() []tarski.Fact {
+	return []tarski.Fact{
 		Role("ana", "admin"),
 		Role("bo", "reader"),
 		Inherits("admin", "editor"),
@@ -21,7 +21,7 @@ func fixture() []datalog.Fact {
 	}
 }
 
-func mustLoad(t *testing.T, standing []datalog.Fact, sets ...datalog.RuleSet) Policy {
+func mustLoad(t *testing.T, standing []tarski.Fact, sets ...tarski.RuleSet) Policy {
 	t.Helper()
 	return mustLoadConfig(t, Config{Standing: standing, Sets: sets})
 }
@@ -35,11 +35,11 @@ func mustLoadConfig(t *testing.T, cfg Config) Policy {
 	return p
 }
 
-func rbacOnly() []datalog.RuleSet { return []datalog.RuleSet{RBAC()} }
+func rbacOnly() []tarski.RuleSet { return []tarski.RuleSet{RBAC()} }
 
-func ruleSet(t *testing.T, name, text string) datalog.RuleSet {
+func ruleSet(t *testing.T, name, text string) tarski.RuleSet {
 	t.Helper()
-	s, err := datalog.NewRuleSet(name, 1, text)
+	s, err := tarski.NewRuleSet(name, 1, text)
 	if err != nil {
 		t.Fatalf("NewRuleSet: %v", err)
 	}
@@ -49,7 +49,7 @@ func ruleSet(t *testing.T, name, text string) datalog.RuleSet {
 // reaches reports whether the chain of absences ends at a literal over relation. A base
 // relation is not an Absence of its own: it is the Failed literal of the rule that read
 // it, so both are looked at.
-func reaches(a datalog.Absence, relation string) bool {
+func reaches(a tarski.Absence, relation string) bool {
 	if a.Relation == relation {
 		return true
 	}
@@ -67,8 +67,8 @@ func reaches(a datalog.Absence, relation string) bool {
 }
 
 // failures lists every RuleFailure under a, depth first.
-func failures(a datalog.Absence) []datalog.RuleFailure {
-	var out []datalog.RuleFailure
+func failures(a tarski.Absence) []tarski.RuleFailure {
+	var out []tarski.RuleFailure
 	for _, r := range a.Rules {
 		out = append(out, r)
 		for _, b := range r.Because {
@@ -78,7 +78,7 @@ func failures(a datalog.Absence) []datalog.RuleFailure {
 	return out
 }
 
-func proofLeaves(p datalog.Proof, into map[string]bool) {
+func proofLeaves(p tarski.Proof, into map[string]bool) {
 	if p.Rule == nil {
 		into[p.Relation] = true
 		return

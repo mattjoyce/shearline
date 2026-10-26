@@ -11,19 +11,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mattjoyce/shearline/datalog"
+	"github.com/mattjoyce/tarski"
 )
 
 func TestDecide(t *testing.T) {
 	denyLate := ruleSet(t, "house", `deny(P, A, R) :- principal(P), action(A), resource(R), context("hour", H), H > 22.`)
-	late, _ := datalog.Number("23")
-	noon, _ := datalog.Number("12")
-	denyFact := []datalog.Fact{Deny("bo", "read", "timeline/secret")}
+	late, _ := tarski.Number("23")
+	noon, _ := tarski.Number("12")
+	denyFact := []tarski.Fact{Deny("bo", "read", "timeline/secret")}
 
 	tests := []struct {
 		name     string
-		standing []datalog.Fact
-		sets     []datalog.RuleSet
+		standing []tarski.Fact
+		sets     []tarski.RuleSet
 		req      Request
 		want     bool
 	}{
@@ -33,16 +33,16 @@ func TestDecide(t *testing.T) {
 		{"wrong action denies", fixture(), nil, Request{Principal: "bo", Action: "write", Resource: "timeline/bp"}, false},
 		{"resource outside every prefix denies", fixture(), nil, Request{Principal: "ana", Action: "read", Resource: "secrets/x"}, false},
 		{"unknown principal denies", fixture(), nil, Request{Principal: "zed", Action: "read", Resource: "timeline/bp"}, false},
-		{"consumer deny overrides allow", fixture(), []datalog.RuleSet{denyLate}, Request{Principal: "ana", Action: "read", Resource: "timeline/bp", Context: map[string]datalog.Const{"hour": late}}, false},
-		{"consumer deny silent when it does not match", fixture(), []datalog.RuleSet{denyLate}, Request{Principal: "ana", Action: "read", Resource: "timeline/bp", Context: map[string]datalog.Const{"hour": noon}}, true},
-		{"consumer deny silent without the context key", fixture(), []datalog.RuleSet{denyLate}, Request{Principal: "ana", Action: "read", Resource: "timeline/bp"}, true},
+		{"consumer deny overrides allow", fixture(), []tarski.RuleSet{denyLate}, Request{Principal: "ana", Action: "read", Resource: "timeline/bp", Context: map[string]tarski.Const{"hour": late}}, false},
+		{"consumer deny silent when it does not match", fixture(), []tarski.RuleSet{denyLate}, Request{Principal: "ana", Action: "read", Resource: "timeline/bp", Context: map[string]tarski.Const{"hour": noon}}, true},
+		{"consumer deny silent without the context key", fixture(), []tarski.RuleSet{denyLate}, Request{Principal: "ana", Action: "read", Resource: "timeline/bp"}, true},
 		{"Deny fact overrides allow", append(fixture(), denyFact...), nil, Request{Principal: "bo", Action: "read", Resource: "timeline/secret"}, false},
 		{"Deny fact leaves other resources", append(fixture(), denyFact...), nil, Request{Principal: "bo", Action: "read", Resource: "timeline/bp"}, true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			sets := append([]datalog.RuleSet{RBAC()}, tc.sets...)
-			p := mustLoadConfig(t, Config{Standing: tc.standing, Sets: sets, Context: map[string]datalog.Kind{"hour": datalog.KindNumber}})
+			sets := append([]tarski.RuleSet{RBAC()}, tc.sets...)
+			p := mustLoadConfig(t, Config{Standing: tc.standing, Sets: sets, Context: map[string]tarski.Kind{"hour": tarski.KindNumber}})
 			d, err := p.Decide(context.Background(), tc.req)
 			if err != nil {
 				t.Fatalf("Decide: %v", err)
@@ -53,7 +53,7 @@ func TestDecide(t *testing.T) {
 			if len(d.RuleSets) != len(sets) || !strings.HasPrefix(d.RuleSets[0], "rbac/1 sha256:") {
 				t.Fatalf("RuleSets = %v", d.RuleSets)
 			}
-			if !d.Allow && !reflect.DeepEqual(d.Proof, datalog.Proof{}) {
+			if !d.Allow && !reflect.DeepEqual(d.Proof, tarski.Proof{}) {
 				t.Fatalf("a deny carries a proof: %+v", d.Proof)
 			}
 		})
@@ -68,7 +68,7 @@ func TestDecide_EmptyRequestFieldsFailClosed(t *testing.T) {
 		{"empty principal", Request{Action: "read", Resource: "timeline/bp"}},
 		{"empty action", Request{Principal: "ana", Resource: "timeline/bp"}},
 		{"empty resource", Request{Principal: "ana", Action: "read"}},
-		{"empty context key", Request{Principal: "ana", Action: "read", Resource: "timeline/bp", Context: map[string]datalog.Const{"": datalog.String("x")}}},
+		{"empty context key", Request{Principal: "ana", Action: "read", Resource: "timeline/bp", Context: map[string]tarski.Const{"": tarski.String("x")}}},
 	}
 	p := mustLoad(t, fixture(), RBAC())
 	for _, tc := range tests {
@@ -82,9 +82,9 @@ func TestDecide_EmptyRequestFieldsFailClosed(t *testing.T) {
 }
 
 func TestDecide_EmptyContextValueIsAllowed(t *testing.T) {
-	p := mustLoadConfig(t, Config{Standing: fixture(), Sets: rbacOnly(), Context: map[string]datalog.Kind{"note": datalog.KindString}})
+	p := mustLoadConfig(t, Config{Standing: fixture(), Sets: rbacOnly(), Context: map[string]tarski.Kind{"note": tarski.KindString}})
 	d, err := p.Decide(context.Background(), Request{Principal: "ana", Action: "read", Resource: "timeline/bp",
-		Context: map[string]datalog.Const{"note": datalog.String("")}})
+		Context: map[string]tarski.Const{"note": tarski.String("")}})
 	if err != nil || !d.Allow {
 		t.Fatalf("Decide = %+v, %v", d, err)
 	}
@@ -110,8 +110,8 @@ func TestDecide_ProofOnAllow(t *testing.T) {
 		t.Fatalf("proof = %+v", d.Proof)
 	}
 	leaves := map[string]bool{}
-	var walk func(datalog.Proof)
-	walk = func(p datalog.Proof) {
+	var walk func(tarski.Proof)
+	walk = func(p tarski.Proof) {
 		if p.Rule == nil {
 			leaves[p.Relation] = true
 			return
@@ -156,11 +156,11 @@ func TestDecide_CancelledContextDenies(t *testing.T) {
 }
 
 func TestEvalError_WrapsTooLarge(t *testing.T) {
-	err := evalError("decide", &datalog.TooLarge{Relation: "holds", MaxBytes: 1})
-	if !errors.Is(err, datalog.ErrTooLarge) || !strings.Contains(err.Error(), "narrow the grants reachable from this principal") {
+	err := evalError("decide", &tarski.TooLarge{Relation: "holds", MaxBytes: 1})
+	if !errors.Is(err, tarski.ErrTooLarge) || !strings.Contains(err.Error(), "narrow the grants reachable from this principal") {
 		t.Fatalf("err = %v", err)
 	}
-	var tl *datalog.TooLarge
+	var tl *tarski.TooLarge
 	if !errors.As(err, &tl) {
 		t.Fatal("the *TooLarge is lost in the wrap")
 	}
@@ -199,8 +199,8 @@ func TestDecide_ConcurrentSafe(t *testing.T) {
 }
 
 func TestRequestFacts_ContextSorted(t *testing.T) {
-	one, _ := datalog.Number("1")
-	r := Request{Principal: "p", Action: "a", Resource: "r", Context: map[string]datalog.Const{"b": one, "a": one, "c": one}}
+	one, _ := tarski.Number("1")
+	r := Request{Principal: "p", Action: "a", Resource: "r", Context: map[string]tarski.Const{"b": one, "a": one, "c": one}}
 	fs := r.facts()
 	var keys []string
 	for _, f := range fs[3:] {
@@ -212,7 +212,7 @@ func TestRequestFacts_ContextSorted(t *testing.T) {
 }
 
 func TestDecide_ScaleManyPrincipals(t *testing.T) {
-	standing := []datalog.Fact{Grant("reader", "read", "timeline/")}
+	standing := []tarski.Fact{Grant("reader", "read", "timeline/")}
 	for i := 0; i < 50000; i++ {
 		standing = append(standing, Role(fmt.Sprintf("principal-%05d", i), "reader"))
 	}
@@ -230,22 +230,22 @@ func TestDecide_ScaleManyPrincipals(t *testing.T) {
 func TestErrRequest(t *testing.T) {
 	p := mustLoad(t, fixture(), RBAC())
 	_, err := p.Decide(context.Background(), Request{Action: "read", Resource: "x"})
-	if !errors.Is(err, ErrRequest) || !errors.Is(err, datalog.ErrInvalid) {
+	if !errors.Is(err, ErrRequest) || !errors.Is(err, tarski.ErrInvalid) {
 		t.Fatalf("Decide err = %v", err)
 	}
 	_, err = p.Permitted(context.Background(), "", "read")
-	if !errors.Is(err, ErrRequest) || !errors.Is(err, datalog.ErrInvalid) {
+	if !errors.Is(err, ErrRequest) || !errors.Is(err, tarski.ErrInvalid) {
 		t.Fatalf("Permitted err = %v", err)
 	}
 	// A context key the policy did not declare, or of the wrong kind, is the caller's
 	// fault too, and ErrInvalid stays reachable as the doc on ErrRequest promises.
 	p = mustLoad(t, fixture(), RBAC())
-	for _, c := range []map[string]datalog.Const{
-		{"unknown": datalog.String("x")},
-		{"unknown": datalog.String("x"), "other": datalog.String("y")},
+	for _, c := range []map[string]tarski.Const{
+		{"unknown": tarski.String("x")},
+		{"unknown": tarski.String("x"), "other": tarski.String("y")},
 	} {
 		_, err = p.Decide(context.Background(), Request{Principal: "ana", Action: "read", Resource: "x", Context: c})
-		if !errors.Is(err, ErrRequest) || !errors.Is(err, datalog.ErrInvalid) {
+		if !errors.Is(err, ErrRequest) || !errors.Is(err, tarski.ErrInvalid) {
 			t.Fatalf("Decide with context %v: err = %v", c, err)
 		}
 	}
@@ -310,7 +310,7 @@ func TestDecide_Why(t *testing.T) {
 	})
 	t.Run("allowed request has no Why", func(t *testing.T) {
 		d := decide(Request{Principal: "bo", Action: "read", Resource: "timeline/bp"})
-		if !d.Allow || !reflect.DeepEqual(d.Why, datalog.Absence{}) {
+		if !d.Allow || !reflect.DeepEqual(d.Why, tarski.Absence{}) {
 			t.Fatalf("Why = %v", d.Why)
 		}
 	})
@@ -326,14 +326,14 @@ func TestDecide_Why(t *testing.T) {
 	})
 	t.Run("error carries no Why", func(t *testing.T) {
 		d, err := p.Decide(context.Background(), Request{Action: "read", Resource: "x"})
-		if err == nil || d.Allow || !reflect.DeepEqual(d.Why, datalog.Absence{}) {
+		if err == nil || d.Allow || !reflect.DeepEqual(d.Why, tarski.Absence{}) {
 			t.Fatalf("Decide = %+v, %v", d, err)
 		}
 	})
 }
 
 func TestDecide_WhyAtScale(t *testing.T) {
-	standing := []datalog.Fact{Grant("reader", "read", "timeline/")}
+	standing := []tarski.Fact{Grant("reader", "read", "timeline/")}
 	for i := 0; i < 50000; i++ {
 		standing = append(standing, Role(fmt.Sprintf("principal-%05d", i), "reader"))
 	}

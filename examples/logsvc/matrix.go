@@ -39,8 +39,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mattjoyce/shearline/datalog"
 	"github.com/mattjoyce/shearline/policy"
+	"github.com/mattjoyce/tarski"
 )
 
 // Matrix is the shape of rbac.yaml.
@@ -91,7 +91,7 @@ type Tokens struct {
 //	policy.Grant(role, action, endpoint)  grants/3     the role may do action on endpoint
 //	policy.Role(token, role)              role/2       the token holds the role
 //
-// Each returns a plain datalog.Fact: a relation name and a tuple of values. The
+// Each returns a plain tarski.Fact: a relation name and a tuple of values. The
 // constructors exist so that the relation name, the number of columns and the order of
 // the columns cannot be mistyped.
 //
@@ -105,7 +105,7 @@ type Tokens struct {
 // would say why. An endpoint that is a prefix of another would make one grant cover two
 // routes. Both are mistakes in this service's vocabulary, so this service's code catches
 // them.
-func Facts(m Matrix, t Tokens) ([]datalog.Fact, error) {
+func Facts(m Matrix, t Tokens) ([]tarski.Fact, error) {
 	if m.Action == "" {
 		return nil, fmt.Errorf("rbac: action is empty")
 	}
@@ -120,7 +120,7 @@ func Facts(m Matrix, t Tokens) ([]datalog.Fact, error) {
 			}
 		}
 	}
-	var fs []datalog.Fact
+	var fs []tarski.Fact
 	for name, r := range m.Roles {
 		for _, parent := range r.Inherits {
 			if _, ok := m.Roles[parent]; !ok {

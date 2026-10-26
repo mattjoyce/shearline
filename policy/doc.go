@@ -1,7 +1,7 @@
 // Package policy asks one question of a rule set: may this principal take this action
 // on this resource, in this context? It owns the PARC vocabulary (principal, action,
 // resource, context) and nothing about how rules are evaluated; that is package
-// datalog's.
+// tarski's (github.com/mattjoyce/tarski).
 //
 // A Policy is built once from standing facts and rule sets, then answers any number
 // of requests. It holds no state a request can change, so Decide and Permitted are

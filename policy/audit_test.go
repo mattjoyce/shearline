@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/mattjoyce/shearline/datalog"
+	"github.com/mattjoyce/tarski"
 )
 
 // These four came from an adversarial audit of the module (EDGE_AUDIT.md findings 1 and
@@ -12,15 +12,15 @@ import (
 // ownership boundary: what Load runs is what the hash names, and nothing the caller keeps
 // can change it afterward.
 
-func aliceOnly(t *testing.T) datalog.RuleSet {
+func aliceOnly(t *testing.T) tarski.RuleSet {
 	t.Helper()
 	return ruleSet(t, "custom", `allow("alice", "read", "alice/private").`)
 }
 
 func TestLoad_ASTMustMatchHash(t *testing.T) {
 	set := aliceOnly(t)
-	set.Program.Rules[0].Head.Args[2].Const = datalog.String("bob/private") // text and hash still say alice
-	p, err := Load(Config{Sets: []datalog.RuleSet{RBAC(), set}})
+	set.Program.Rules[0].Head.Args[2].Const = tarski.String("bob/private") // text and hash still say alice
+	p, err := Load(Config{Sets: []tarski.RuleSet{RBAC(), set}})
 	if err != nil {
 		return // refusing the mismatch at Load is the right answer
 	}
@@ -36,7 +36,7 @@ func TestLoad_ASTMustMatchHash(t *testing.T) {
 func TestLoad_DetachedFromCallersProgram(t *testing.T) {
 	set := aliceOnly(t)
 	p := mustLoad(t, nil, RBAC(), set)
-	set.Program.Rules[0].Head.Args[2].Const = datalog.String("bob/private")
+	set.Program.Rules[0].Head.Args[2].Const = tarski.String("bob/private")
 	d, err := p.Decide(context.Background(), Request{Principal: "alice", Action: "read", Resource: "bob/private"})
 	if err != nil {
 		t.Fatal(err)
@@ -62,9 +62,9 @@ func TestZeroPolicy_FailsClosed(t *testing.T) {
 func TestDecide_DelegateOwnership(t *testing.T) {
 	set := ruleSet(t, "delegate", `deny(P, A, R) :- principal(P), action(A), resource(R), not context("delegate", "corporate-chat").`)
 	p := mustLoadConfig(t, Config{
-		Standing: []datalog.Fact{Role("alice", "self"), Grant("self", "read", "employees/alice/")},
-		Sets:     []datalog.RuleSet{RBAC(), set},
-		Context:  map[string]datalog.Kind{"delegate": datalog.KindString},
+		Standing: []tarski.Fact{Role("alice", "self"), Grant("self", "read", "employees/alice/")},
+		Sets:     []tarski.RuleSet{RBAC(), set},
+		Context:  map[string]tarski.Kind{"delegate": tarski.KindString},
 	})
 	tests := []struct {
 		name, resource, delegate string
@@ -78,9 +78,9 @@ func TestDecide_DelegateOwnership(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			c := map[string]datalog.Const{}
+			c := map[string]tarski.Const{}
 			if tc.delegate != "" {
-				c["delegate"] = datalog.String(tc.delegate)
+				c["delegate"] = tarski.String(tc.delegate)
 			}
 			d, err := p.Decide(context.Background(), Request{Principal: "alice", Action: "read", Resource: tc.resource, Context: c})
 			if err != nil || d.Allow != tc.allow {

@@ -4,6 +4,7 @@ go 1.25
 
 require (
 	github.com/mattjoyce/shearline v0.1.0
+	github.com/mattjoyce/tarski v0.2.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 

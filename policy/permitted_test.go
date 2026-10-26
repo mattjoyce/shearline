@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/mattjoyce/shearline/datalog"
+	"github.com/mattjoyce/tarski"
 )
 
 func TestPermitted(t *testing.T) {
@@ -65,7 +65,7 @@ func TestPermitted_ThirdColumnContract(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			p := mustLoad(t, fixture(), RBAC(), ruleSet(t, "bad", tc.text))
 			got, err := p.Permitted(context.Background(), "bo", "read")
-			if !errors.Is(err, datalog.ErrInvalid) || got != nil {
+			if !errors.Is(err, tarski.ErrInvalid) || got != nil {
 				t.Fatalf("got %v, %v; want nil and ErrInvalid", got, err)
 			}
 		})

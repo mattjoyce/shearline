@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/mattjoyce/shearline/datalog"
+	"github.com/mattjoyce/tarski"
 )
 
 // maxDecisionBytes bounds what one decision may derive. A decision is a few joins over
@@ -28,8 +28,8 @@ var rbacText string
 // request. TestRBAC_Parses holds it.
 var rbac = mustRuleSet("rbac", 1, rbacText)
 
-func mustRuleSet(name string, version int, text string) datalog.RuleSet {
-	s, err := datalog.NewRuleSet(name, version, text)
+func mustRuleSet(name string, version int, text string) tarski.RuleSet {
+	s, err := tarski.NewRuleSet(name, version, text)
 	if err != nil {
 		panic(fmt.Sprintf("policy: bundled rule set %s/%d: %v", name, version, err))
 	}
@@ -38,7 +38,7 @@ func mustRuleSet(name string, version int, text string) datalog.RuleSet {
 
 // RBAC is the bundled rule set: roles, inheritance, prefix grants, and deny/3 as a
 // hook for a consumer's own rule set.
-func RBAC() datalog.RuleSet {
+func RBAC() tarski.RuleSet {
 	s := rbac
 	s.Program = rbac.Program.Clone()
 	return s
@@ -57,17 +57,17 @@ type Request struct {
 	Principal string
 	Action    string
 	Resource  string
-	Context   map[string]datalog.Const // becomes context(Key, Value) facts, keys sorted
+	Context   map[string]tarski.Const // becomes context(Key, Value) facts, keys sorted
 }
 
 // Policy is a compiled rule set with its standing facts. It is a value: nothing
 // changes after Load, so it is safe for concurrent use.
 type Policy struct {
-	plan datalog.Plan
-	base datalog.Base
+	plan tarski.Plan
+	base tarski.Base
 	ids  []string
 
-	context map[string]datalog.Kind // the declared keys; a private copy
+	context map[string]tarski.Kind // the declared keys; a private copy
 }
 
 // Decision is the answer to one request, with what stood behind it. Proof is why it was
@@ -77,9 +77,9 @@ type Policy struct {
 // literal each allow rule reached.
 type Decision struct {
 	Allow    bool
-	Proof    datalog.Proof   // why allowed; zero when denied
-	Why      datalog.Absence // why denied: Result.WhyNot("allow", ...); zero when allowed or on error
-	RuleSets []string        // the loaded sets' IDs in load order, e.g. "rbac/1 sha256:..."
+	Proof    tarski.Proof   // why allowed; zero when denied
+	Why      tarski.Absence // why denied: Result.WhyNot("allow", ...); zero when allowed or on error
+	RuleSets []string       // the loaded sets' IDs in load order, e.g. "rbac/1 sha256:..."
 }
 
 // Config is everything a Policy is built from. Context lists every key a request may
@@ -92,9 +92,9 @@ type Decision struct {
 // is the consumer's to require before Decide, or to require positively in the rule,
 // since a rule that reads its absence through negation holds when the caller omits it.
 type Config struct {
-	Standing []datalog.Fact
-	Sets     []datalog.RuleSet
-	Context  map[string]datalog.Kind
+	Standing []tarski.Fact
+	Sets     []tarski.RuleSet
+	Context  map[string]tarski.Kind
 }
 
 // Load verifies each rule set against its hash, compiles Sets in order over Schema() and
@@ -121,11 +121,11 @@ func Load(cfg Config) (Policy, error) {
 	for _, f := range standing {
 		if requestRelations[f.Relation] {
 			return Policy{}, fmt.Errorf("policy: load: %w: a standing fact of %s is a request relation; a standing fact there would speak for every request",
-				datalog.ErrInvalid, f.Relation)
+				tarski.ErrInvalid, f.Relation)
 		}
 	}
 	standing = sortedFacts(standing)
-	programs := make([]datalog.Program, 0, len(sets))
+	programs := make([]tarski.Program, 0, len(sets))
 	ids := make([]string, len(sets))
 	for i, s := range sets {
 		if err := s.Verify(); err != nil {
@@ -134,14 +134,20 @@ func Load(cfg Config) (Policy, error) {
 		programs = append(programs, s.Program)
 		ids[i] = s.ID()
 	}
-	plan, err := datalog.Compile(schema(declared), programs...)
+	plan, err := tarski.Compile(schema(declared), programs...)
 	if err != nil {
 		return Policy{}, fmt.Errorf("policy: load: %w", err)
+	}
+	if plan.HasAggregates() {
+		// A decision is one request against standing facts; an aggregate (count, sum, min,
+		// max) summarises a whole relation and belongs in a query. Refusing it here also
+		// keeps every proof a plain derivation.
+		return Policy{}, fmt.Errorf("policy: load: %w: policy rule sets cannot use aggregates; a decision is per request, aggregates are for queries", tarski.ErrInvalid)
 	}
 	if err := requireRelations(plan); err != nil {
 		return Policy{}, fmt.Errorf("policy: load: %w", err)
 	}
-	b, err := datalog.NewBase(schema(declared), standing...)
+	b, err := tarski.NewBase(schema(declared), standing...)
 	if err != nil {
 		return Policy{}, fmt.Errorf("policy: load: %w", err)
 	}
@@ -166,14 +172,14 @@ func (p Policy) Decide(ctx context.Context, req Request) (Decision, error) {
 	if err != nil {
 		return d, fmt.Errorf("policy: decide: %w: %w", ErrRequest, err)
 	}
-	res, err := datalog.Evaluate(ctx, p.plan, base, datalog.Options{
+	res, err := tarski.Evaluate(ctx, p.plan, base, tarski.Options{
 		MaxBytes: maxDecisionBytes, MaxSteps: maxDecisionSteps, Proofs: true,
 	})
 	if err != nil {
 		return d, evalError("decide", err)
 	}
 	// Proofs are on, so a recorded proof is membership in allow/3.
-	want := datalog.Tuple{datalog.String(req.Principal), datalog.String(req.Action), datalog.String(req.Resource)}
+	want := tarski.Tuple{tarski.String(req.Principal), tarski.String(req.Action), tarski.String(req.Resource)}
 	if proof, ok := res.Proof("allow", want); ok {
 		d.Allow, d.Proof = true, proof
 		return d, nil
@@ -201,7 +207,7 @@ func (p Policy) Permitted(ctx context.Context, principal, action string) ([]stri
 	if err != nil {
 		return nil, fmt.Errorf("policy: permitted: %w: %w", ErrRequest, err)
 	}
-	res, err := datalog.Evaluate(ctx, p.plan, base, datalog.Options{MaxBytes: maxDecisionBytes, MaxSteps: maxDecisionSteps})
+	res, err := tarski.Evaluate(ctx, p.plan, base, tarski.Options{MaxBytes: maxDecisionBytes, MaxSteps: maxDecisionSteps})
 	if err != nil {
 		return nil, evalError("permitted", err)
 	}
@@ -212,11 +218,11 @@ func (p Policy) Permitted(ctx context.Context, principal, action string) ([]stri
 	out := make([]string, 0, ans.Len())
 	for _, t := range ans.Tuples() {
 		// A rule set may derive permit tuples for anyone; the listing is this caller's.
-		if !sameTuple(t[:2], datalog.Tuple{datalog.String(principal), datalog.String(action)}) {
+		if !sameTuple(t[:2], tarski.Tuple{tarski.String(principal), tarski.String(action)}) {
 			continue
 		}
-		if t[2].Kind() != datalog.KindString || t[2].Text() == "" {
-			return nil, fmt.Errorf("policy: permitted: %w: permit/3 has a third column that is not a non-empty string (%q)", datalog.ErrInvalid, t[2].Text())
+		if t[2].Kind() != tarski.KindString || t[2].Text() == "" {
+			return nil, fmt.Errorf("policy: permitted: %w: permit/3 has a third column that is not a non-empty string (%q)", tarski.ErrInvalid, t[2].Text())
 		}
 		out = append(out, t[2].Text())
 	}
@@ -228,8 +234,8 @@ func (p Policy) Permitted(ctx context.Context, principal, action string) ([]stri
 // the arity they read them: a set without RBAC would otherwise deny everything silently,
 // or panic in Permitted on a tuple of the wrong width.
 // sortedFacts is a sorted copy of facts; the caller's slice is left alone.
-func sortedFacts(facts []datalog.Fact) []datalog.Fact {
-	out := append([]datalog.Fact(nil), facts...)
+func sortedFacts(facts []tarski.Fact) []tarski.Fact {
+	out := append([]tarski.Fact(nil), facts...)
 	sort.SliceStable(out, func(i, j int) bool {
 		if out[i].Relation != out[j].Relation {
 			return out[i].Relation < out[j].Relation
@@ -249,14 +255,14 @@ func sortedFacts(facts []datalog.Fact) []datalog.Fact {
 }
 
 // checkContext copies the declared context and refuses a key or kind that cannot be one.
-func checkContext(in map[string]datalog.Kind) (map[string]datalog.Kind, error) {
-	out := make(map[string]datalog.Kind, len(in))
+func checkContext(in map[string]tarski.Kind) (map[string]tarski.Kind, error) {
+	out := make(map[string]tarski.Kind, len(in))
 	for k, kind := range in {
 		if k == "" {
-			return nil, fmt.Errorf("%w: Config.Context has an empty key", datalog.ErrInvalid)
+			return nil, fmt.Errorf("%w: Config.Context has an empty key", tarski.ErrInvalid)
 		}
-		if kind != datalog.KindString && kind != datalog.KindNumber && kind != datalog.KindBool {
-			return nil, fmt.Errorf("%w: Config.Context key %q has no such kind (%d)", datalog.ErrInvalid, k, kind)
+		if kind != tarski.KindString && kind != tarski.KindNumber && kind != tarski.KindBool {
+			return nil, fmt.Errorf("%w: Config.Context key %q has no such kind (%d)", tarski.ErrInvalid, k, kind)
 		}
 		out[k] = kind
 	}
@@ -265,11 +271,11 @@ func checkContext(in map[string]datalog.Kind) (map[string]datalog.Kind, error) {
 
 // checkRequestContext holds a request's context to the declared keys and kinds. It runs
 // before the facts are built so the error names the key and both kinds.
-func (p Policy) checkRequestContext(c map[string]datalog.Const) error {
+func (p Policy) checkRequestContext(c map[string]tarski.Const) error {
 	if len(c) > len(p.context) {
 		// More keys than are declared: at least one is undeclared, and this says so
 		// before the keys are collected and sorted.
-		return fmt.Errorf("%w: %w: the request carries %d context keys, but Config.Context declares %d", ErrRequest, datalog.ErrInvalid, len(c), len(p.context))
+		return fmt.Errorf("%w: %w: the request carries %d context keys, but Config.Context declares %d", ErrRequest, tarski.ErrInvalid, len(c), len(p.context))
 	}
 	keys := make([]string, 0, len(c))
 	for k := range c {
@@ -279,16 +285,16 @@ func (p Policy) checkRequestContext(c map[string]datalog.Const) error {
 	for _, k := range keys {
 		want, ok := p.context[k]
 		if !ok {
-			return fmt.Errorf("%w: %w: context key %q is not declared in Config.Context", ErrRequest, datalog.ErrInvalid, k)
+			return fmt.Errorf("%w: %w: context key %q is not declared in Config.Context", ErrRequest, tarski.ErrInvalid, k)
 		}
 		if got := c[k].Kind(); got != want {
-			return fmt.Errorf("%w: %w: context key %q is declared %s, but the request gave a %s", ErrRequest, datalog.ErrInvalid, k, kindName(want), kindName(got))
+			return fmt.Errorf("%w: %w: context key %q is declared %s, but the request gave a %s", ErrRequest, tarski.ErrInvalid, k, kindName(want), kindName(got))
 		}
 	}
 	return nil
 }
 
-func requireRelations(plan datalog.Plan) error {
+func requireRelations(plan tarski.Plan) error {
 	for _, r := range []struct {
 		name string
 		want int
@@ -297,27 +303,27 @@ func requireRelations(plan datalog.Plan) error {
 		got, ok := plan.Arity(name)
 		switch {
 		case !ok:
-			return fmt.Errorf("%w: no rule set defines %s/%d; load RBAC() first or define it", datalog.ErrInvalid, name, want)
+			return fmt.Errorf("%w: no rule set defines %s/%d; load RBAC() first or define it", tarski.ErrInvalid, name, want)
 		case got != want:
-			return fmt.Errorf("%w: %s is %s/%d, but a decision reads %s/%d", datalog.ErrInvalid, name, name, got, name, want)
+			return fmt.Errorf("%w: %s is %s/%d, but a decision reads %s/%d", tarski.ErrInvalid, name, name, got, name, want)
 		case !plan.Defines(name):
 			// Declared and defined nowhere would be an empty relation, and a policy that
 			// denies everything without a rule saying so.
-			return fmt.Errorf("%w: %s/%d is declared but no rule defines it; load RBAC() first or define it", datalog.ErrInvalid, name, want)
+			return fmt.Errorf("%w: %s/%d is declared but no rule defines it; load RBAC() first or define it", tarski.ErrInvalid, name, want)
 		}
 	}
 	return nil
 }
 
 func evalError(op string, err error) error {
-	var tl *datalog.TooLarge
+	var tl *tarski.TooLarge
 	if errors.As(err, &tl) {
 		return fmt.Errorf("policy: %s: %w; narrow the grants reachable from this principal", op, err)
 	}
 	return fmt.Errorf("policy: %s: %w", op, err)
 }
 
-func sameTuple(a, b datalog.Tuple) bool {
+func sameTuple(a, b tarski.Tuple) bool {
 	if len(a) != len(b) {
 		return false
 	}
