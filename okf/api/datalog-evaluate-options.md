@@ -7,7 +7,7 @@ tags: [go, api, evaluate, options, bounds]
 timestamp: 2026-10-22T00:00:00Z
 ---
 
-> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.2.2); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
+> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.3.1); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
 
 # Signature
 
@@ -40,6 +40,6 @@ func Evaluate(ctx context.Context, plan Plan, base Base, opts Options) (Result, 
 
 # Citations
 
-[1] [tarski/eval.go](https://github.com/mattjoyce/tarski/blob/v0.2.2/eval.go)
-[2] [tarski/bounds.go](https://github.com/mattjoyce/tarski/blob/v0.2.2/bounds.go)
-[3] [tarski docs/DESIGN.md, Options and Evaluation invariants](https://github.com/mattjoyce/tarski/blob/v0.2.2/docs/DESIGN.md)
+[1] [tarski/eval.go](https://github.com/mattjoyce/tarski/blob/v0.3.1/eval.go)
+[2] [tarski/bounds.go](https://github.com/mattjoyce/tarski/blob/v0.3.1/bounds.go)
+[3] [tarski docs/DESIGN.md, Evaluation](https://github.com/mattjoyce/tarski/blob/v0.3.1/docs/DESIGN.md)

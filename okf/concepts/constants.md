@@ -6,7 +6,7 @@ tags: [constants, kinds, utf8, numbers]
 timestamp: 2026-10-22T00:00:00Z
 ---
 
-> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.2.2); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
+> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.3.1); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
 
 # Kinds
 
@@ -52,5 +52,5 @@ A tuple's key is the concatenation of its constants' keys, each with a kind byte
 # Citations
 
 [1] [DESIGN.md, Constants and string domain](../../docs/DESIGN.md)
-[2] [tarski/term.go](https://github.com/mattjoyce/tarski/blob/v0.2.2/term.go)
+[2] [tarski/term.go](https://github.com/mattjoyce/tarski/blob/v0.3.1/term.go)
 [3] [Module panel collation](../../docs/reviews/luminary-module-2026-10-22/00-collation.md)

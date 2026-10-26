@@ -1,7 +1,7 @@
 github.com/mattjoyce/shearline v0.2.0 h1:ng2Ekta0hWYEdaXCa2XZ5KEo91egTz31x/jowzBdEbs=
 github.com/mattjoyce/shearline v0.2.0/go.mod h1:Okt0WNgiMqo7NhAT5NHc1uhbZCL7GJerbRYaa/Z4Q14=
-github.com/mattjoyce/tarski v0.2.2 h1:DJQI7W/du6eyk9tgH6qV7Dn7lWEqxjETt/JrQfTy2ok=
-github.com/mattjoyce/tarski v0.2.2/go.mod h1:R8DkLAufPRC3QrbnegpT10dhu97F1GaVZbjzF30JcIM=
+github.com/mattjoyce/tarski v0.3.1 h1:fe03eJaBRRbq3E29529okoLsPT60/fMjGIiAnvPEGO0=
+github.com/mattjoyce/tarski v0.3.1/go.mod h1:R8DkLAufPRC3QrbnegpT10dhu97F1GaVZbjzF30JcIM=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=

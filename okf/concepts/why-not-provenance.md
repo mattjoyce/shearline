@@ -6,7 +6,7 @@ tags: [whynot, absence, explanation]
 timestamp: 2026-10-22T00:00:00Z
 ---
 
-> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.2.2); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
+> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.3.1); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
 
 # The idea
 
@@ -59,4 +59,4 @@ One engine walk per refusal. Matt accepted that cost for the transparency; part 
 
 [1] [README, refusal example output](../../README.md)
 [2] [DESIGN.md, Absence and WhyNot contract](../../docs/DESIGN.md)
-[3] [tarski/whynot.go](https://github.com/mattjoyce/tarski/blob/v0.2.2/whynot.go)
+[3] [tarski/whynot.go](https://github.com/mattjoyce/tarski/blob/v0.3.1/whynot.go)

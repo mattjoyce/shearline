@@ -6,7 +6,7 @@ tags: [proof, determinism, receipt]
 timestamp: 2026-10-22T00:00:00Z
 ---
 
-> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.2.2); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
+> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.3.1); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
 
 # What a proof is
 
@@ -53,6 +53,12 @@ So a receipt reads `rbac/1:19  allow(P, A, R) :- ...`. The hash is not in the pr
 
 `String()` is an indented tree, one tuple per line, `set:line text` on the right or `fact`. `MarshalJSON` writes `{relation, tuple, rule: {set, line, text} or null, body}` and never the parser's AST. A tuple proved earlier in the same document is not written out again: it is `{relation, tuple, rule: null, shown: true}`, and its proof is the first in the document with that relation and tuple, so the JSON is linear in the derivation however much of it is shared, as the text is.
 
+# Frozen shape and fact order
+
+The JSON of `Proof` and `Absence` is frozen in tarski, and since v0.3.1 `TestGolden_ProofAndAbsenceJSON` pins it byte for byte, so the JSON shape of a Shearline receipt is a frozen promise of the engine, not only of this module.
+
+Answers and hashes depend on the set of facts; proofs, witness order and why-not bindings also depend on the order the facts were given. `policy` fixes that order: `Load` sorts the standing facts, and a request's own facts are built as principal, action, resource, then context keys sorted by key, so a proof is a function of the policy's content and the request. A consumer that pins proof bytes and builds its own base from `tarski` directly must sort its facts. See `Load` in `policy/policy.go` and `Request.facts` in `policy/facts.go`.
+
 # Related
 
 - [Why-not provenance](/concepts/why-not-provenance.md) is the counterpart for a tuple that was not derived.
@@ -62,6 +68,7 @@ So a receipt reads `rbac/1:19  allow(P, A, R) :- ...`. The hash is not in the pr
 # Citations
 
 [1] [DESIGN.md, Proof contract](../../docs/DESIGN.md)
-[2] [tarski/proof.go](https://github.com/mattjoyce/tarski/blob/v0.2.2/proof.go)
-[3] [tarski/render.go](https://github.com/mattjoyce/tarski/blob/v0.2.2/render.go)
+[2] [tarski/proof.go](https://github.com/mattjoyce/tarski/blob/v0.3.1/proof.go)
+[3] [tarski/render.go](https://github.com/mattjoyce/tarski/blob/v0.3.1/render.go)
 [4] [Design panel collation, finding 1 and correction](../../docs/reviews/luminary-design-2026-10-22/00-collation.md)
+[5] [tarski README, What it promises consumers](https://github.com/mattjoyce/tarski/blob/v0.3.1/README.md)
