@@ -115,5 +115,5 @@ points to the module, and `policy.Load` refuses aggregates. The original plan, f
 Rewrite imports; replace `datalog/` with the dependency; update `DESIGN.md` § datalog API and
 § evaluation invariants to point at the module's own contract; rewrite `okf/packages/datalog.md`
 and the engine concepts to reference the module; change `examples/logsvc/go.mod`; change the
-README's "standard library only" to "one dependency, our own engine"; tag Shearline v0.2.0. The tag is not cut yet: v0.1.0 is still the only Shearline release, and it predates tarski.
+README's "standard library only" to "one dependency, our own engine"; tag Shearline v0.2.0. All of it is done: v0.2.0 is tagged at the merge of PR #3, and `examples/logsvc` requires that release rather than a `replace`.
 The policy tests, the example, and every hash in the README are the acceptance check.
