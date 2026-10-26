@@ -63,7 +63,7 @@ A relation a program declares and nothing defines evaluates as the empty relatio
 
 # Citations
 
-[1] [tarski docs/DESIGN.md, Built-ins and Evaluation invariants](https://github.com/mattjoyce/tarski/blob/v0.3.1/docs/DESIGN.md)
+[1] [tarski docs/DESIGN.md, Built-ins and Evaluation](https://github.com/mattjoyce/tarski/blob/v0.3.1/docs/DESIGN.md)
 [2] [tarski/doc.go](https://github.com/mattjoyce/tarski/blob/v0.3.1/doc.go)
 [3] [tarski/plan.go](https://github.com/mattjoyce/tarski/blob/v0.3.1/plan.go)
 [4] [tarski/stratify.go](https://github.com/mattjoyce/tarski/blob/v0.3.1/stratify.go)

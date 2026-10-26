@@ -42,4 +42,4 @@ func Evaluate(ctx context.Context, plan Plan, base Base, opts Options) (Result, 
 
 [1] [tarski/eval.go](https://github.com/mattjoyce/tarski/blob/v0.3.1/eval.go)
 [2] [tarski/bounds.go](https://github.com/mattjoyce/tarski/blob/v0.3.1/bounds.go)
-[3] [tarski docs/DESIGN.md, Options and Evaluation invariants](https://github.com/mattjoyce/tarski/blob/v0.3.1/docs/DESIGN.md)
+[3] [tarski docs/DESIGN.md, Evaluation](https://github.com/mattjoyce/tarski/blob/v0.3.1/docs/DESIGN.md)
