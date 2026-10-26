@@ -1,0 +1,20 @@
+# Built binaries
+/examples/logsvc/logsvc
+/examples/ductile/ductile
+*.exe
+*.test
+*.out
+/bin/
+/dist/
+
+# Go tooling
+coverage.txt
+coverage.html
+go.work
+go.work.sum
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
