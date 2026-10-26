@@ -16,7 +16,10 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: false # standard library only: there is no go.sum to key a cache on
+          cache: true
+          cache-dependency-path: |
+            go.sum
+            examples/logsvc/go.sum
       - name: gofmt
         run: test -z "$(gofmt -l .)"
       - name: vet
