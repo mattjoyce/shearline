@@ -2,8 +2,8 @@
 
 > **Status, 2026-10-26: the cut is done.** The engine is
 > [github.com/mattjoyce/tarski](https://github.com/mattjoyce/tarski), tagged v0.1.0 and v0.2.0
-> (aggregates), then v0.2.1 and v0.2.2 (fixes), then v0.3.0 (demand-driven evaluation) and v0.3.1
-> (documentation), and Shearline now requires v0.3.1 with its `datalog/` package deleted. Its design and changelog live there (`docs/DESIGN.md`, `CHANGELOG.md`). Items 1 and 2 below are shipped;
+> (aggregates), then v0.2.1 and v0.2.2 (fixes), then v0.3.0 (demand-driven evaluation), v0.3.1
+> (documentation) and v0.3.2 (hardening), and Shearline now requires v0.3.2 with its `datalog/` package deleted. Its design and changelog live there (`docs/DESIGN.md`, `CHANGELOG.md`). Items 1 and 2 below are shipped;
 > what Shearline did on the tag is recorded at the end. The rest of this file is kept as the
 > consumer's steer it was.
 >

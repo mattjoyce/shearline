@@ -3,13 +3,13 @@
 Fixed API for the first cut. `SPEC.md` says why; this says exactly what. Where the two differ,
 this file wins and the difference is listed under *Deviations from the spec*.
 
-Module `github.com/mattjoyce/shearline`, `go 1.25`, one dependency: the engine, `github.com/mattjoyce/tarski` v0.3.1. One package, `policy`; the engine was the second until it moved to its own module. The current release is v0.2.1; [`CHANGELOG.md`](../CHANGELOG.md) lists what changed between releases.
+Module `github.com/mattjoyce/shearline`, `go 1.25`, one dependency: the engine, `github.com/mattjoyce/tarski` v0.3.2. One package, `policy`; the engine was the second until it moved to its own module. The current release is v0.2.1; [`CHANGELOG.md`](../CHANGELOG.md) lists what changed between releases.
 
 ## The engine: `tarski`
 
 The engine is no longer a package of this module. It lives in
 [`github.com/mattjoyce/tarski`](https://github.com/mattjoyce/tarski), cut out of
-`shearline/datalog` at c4f75ab with its history, and Shearline requires it at v0.3.1. Its
+`shearline/datalog` at c4f75ab with its history, and Shearline requires it at v0.3.2. Its
 public API, built-ins, evaluation invariants, bounds and the error contract are in tarski's own
 `docs/DESIGN.md` and `CHANGELOG.md`; that is the contract now, and this file does not repeat it.
 Error messages are prefixed `tarski:` (they were `datalog:`), and numbers at or above 1e6 or below

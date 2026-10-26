@@ -7,7 +7,7 @@ tags: [go, api, result, proof, whynot, answer]
 timestamp: 2026-10-22T00:00:00Z
 ---
 
-> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.3.1); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
+> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.3.2); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
 
 # Signatures
 
@@ -48,9 +48,9 @@ Answers and hashes depend on the set of facts; proofs, witness order and why-not
 
 # Citations
 
-[1] [tarski/proof.go](https://github.com/mattjoyce/tarski/blob/v0.3.1/proof.go)
-[2] [tarski/whynot.go](https://github.com/mattjoyce/tarski/blob/v0.3.1/whynot.go)
-[3] [tarski/render.go](https://github.com/mattjoyce/tarski/blob/v0.3.1/render.go)
-[4] [tarski/answer.go](https://github.com/mattjoyce/tarski/blob/v0.3.1/answer.go)
+[1] [tarski/proof.go](https://github.com/mattjoyce/tarski/blob/v0.3.2/proof.go)
+[2] [tarski/whynot.go](https://github.com/mattjoyce/tarski/blob/v0.3.2/whynot.go)
+[3] [tarski/render.go](https://github.com/mattjoyce/tarski/blob/v0.3.2/render.go)
+[4] [tarski/answer.go](https://github.com/mattjoyce/tarski/blob/v0.3.2/answer.go)
 [5] [DESIGN.md, Proof, Absence, WhyNot](../../docs/DESIGN.md)
-[6] [tarski README, What it promises consumers](https://github.com/mattjoyce/tarski/blob/v0.3.1/README.md)
+[6] [tarski README, What it promises consumers](https://github.com/mattjoyce/tarski/blob/v0.3.2/README.md)

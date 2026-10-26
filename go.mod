@@ -2,4 +2,4 @@ module github.com/mattjoyce/shearline
 
 go 1.25
 
-require github.com/mattjoyce/tarski v0.3.1
+require github.com/mattjoyce/tarski v0.3.2
