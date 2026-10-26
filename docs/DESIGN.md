@@ -3,13 +3,13 @@
 Fixed API for the first cut. `SPEC.md` says why; this says exactly what. Where the two differ,
 this file wins and the difference is listed under *Deviations from the spec*.
 
-Module `github.com/mattjoyce/shearline`, `go 1.25`, one dependency: the engine, `github.com/mattjoyce/tarski` v0.2.2. One package, `policy`; the engine was the second until it moved to its own module. The current release is v0.2.0; [`CHANGELOG.md`](../CHANGELOG.md) lists what changed between releases.
+Module `github.com/mattjoyce/shearline`, `go 1.25`, one dependency: the engine, `github.com/mattjoyce/tarski` v0.3.1. One package, `policy`; the engine was the second until it moved to its own module. The current release is v0.2.0; [`CHANGELOG.md`](../CHANGELOG.md) lists what changed between releases.
 
 ## The engine: `tarski`
 
 The engine is no longer a package of this module. It lives in
 [`github.com/mattjoyce/tarski`](https://github.com/mattjoyce/tarski), cut out of
-`shearline/datalog` at c4f75ab with its history, and Shearline requires it at v0.2.2. Its
+`shearline/datalog` at c4f75ab with its history, and Shearline requires it at v0.3.1. Its
 public API, built-ins, evaluation invariants, bounds and the error contract are in tarski's own
 `docs/DESIGN.md` and `CHANGELOG.md`; that is the contract now, and this file does not repeat it.
 Error messages are prefixed `tarski:` (they were `datalog:`), and numbers at or above 1e6 or below
@@ -187,6 +187,12 @@ resolution; the contract above is as amended by it.
    and RBAC-blind, with the blocking deny's proof inside it when `deny/3` fired. Proof and Absence
    both render as text and compact JSON, so a consumer can log or store a receipt without
    learning the AST. The value is partly future state; the cost is one engine walk per refusal.
+   Proof and Absence JSON are frozen in tarski, and since v0.3.1 `TestGolden_ProofAndAbsenceJSON`
+   pins them byte for byte, so a receipt's JSON shape is a frozen promise of the engine. Answers
+   and hashes depend on the set of facts, but proofs, witness order and why-not bindings also
+   depend on fact order. `policy` fixes that order: `Load` sorts the standing facts and a request's
+   facts are built as principal, action, resource, then context keys sorted by key. A consumer
+   that pins proof bytes from its own base sorts its facts.
 
 4. **Context keys are declared or refused (2026-10-22).** Matt: "code in the future is mostly AI
    generated, therefore be explicit." `Load` takes `Config{Standing, Sets, Context map[string]Kind}`.

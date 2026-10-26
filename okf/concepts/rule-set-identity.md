@@ -6,7 +6,7 @@ tags: [identity, hash, verify, receipt]
 timestamp: 2026-10-22T00:00:00Z
 ---
 
-> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.2.2); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
+> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.3.1); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
 
 # What a rule set is
 
@@ -46,5 +46,5 @@ The edge audit (finding 2) showed a parsed head edited before `Load` while text 
 # Citations
 
 [1] [DESIGN.md, RuleSet, ID, Verify](../../docs/DESIGN.md)
-[2] [tarski/bundled.go](https://github.com/mattjoyce/tarski/blob/v0.2.2/bundled.go)
+[2] [tarski/bundled.go](https://github.com/mattjoyce/tarski/blob/v0.3.1/bundled.go)
 [3] [Edge audit, findings 1 and 2](../../docs/reviews/edge-audit-2026-10-22.md)

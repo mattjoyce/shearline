@@ -1,6 +1,6 @@
 # Shearline — project spec (draft)
 
-> History: this is the original draft. The `datalog` package it describes is now the separate module [tarski](https://github.com/mattjoyce/tarski), required at v0.2.2 (see `docs/ENGINE.md`). Where this draft says "stdlib only", "two packages" or `shearline/datalog`, read the notes marked History.
+> History: this is the original draft. The `datalog` package it describes is now the separate module [tarski](https://github.com/mattjoyce/tarski), required at v0.3.1 (see `docs/ENGINE.md`). Where this draft says "stdlib only", "two packages" or `shearline/datalog`, read the notes marked History.
 
 Drafted 2026-10-22 by an agent on Matt's behalf, from a read of Anam's `internal/query` at
 master `bf0b0f9` and the policy survey `reviews/policy-touch-points-2026-10-22.md` (card 223).
@@ -92,7 +92,7 @@ The engine evaluates and the policy layer checks `allow(P, A, R)` against the re
 
 Two packages, one module, stdlib only.
 
-> History: now one package, `policy`, and one dependency, the tarski engine (v0.2.2). The `datalog` package below was cut out into tarski with its history and deleted from this module; `docs/DESIGN.md` has the current contract.
+> History: now one package, `policy`, and one dependency, the tarski engine (v0.3.1). The `datalog` package below was cut out into tarski with its history and deleted from this module; `docs/DESIGN.md` has the current contract.
 
 ### `datalog` — the engine
 

@@ -6,7 +6,7 @@ tags: [concurrency, immutability, relation, design]
 timestamp: 2026-10-22T00:00:00Z
 ---
 
-> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.2.2); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
+> This describes the engine, which now lives in [tarski](https://github.com/mattjoyce/tarski) (required at v0.3.1); Shearline cut it out at c4f75ab and the code is no longer in this module. The contract is tarski's `docs/DESIGN.md`. Kept here because the policy layer relies on it.
 
 # The cut
 
@@ -42,6 +42,6 @@ A pure refactor gated by the benchmark: kept only within noise. The module panel
 # Citations
 
 [1] [DESIGN.md, Concurrency invariant and Decision 6](../../docs/DESIGN.md)
-[2] [tarski/relation.go](https://github.com/mattjoyce/tarski/blob/v0.2.2/relation.go)
-[3] [tarski/builder.go](https://github.com/mattjoyce/tarski/blob/v0.2.2/builder.go)
-[4] [tarski/base.go](https://github.com/mattjoyce/tarski/blob/v0.2.2/base.go)
+[2] [tarski/relation.go](https://github.com/mattjoyce/tarski/blob/v0.3.1/relation.go)
+[3] [tarski/builder.go](https://github.com/mattjoyce/tarski/blob/v0.3.1/builder.go)
+[4] [tarski/base.go](https://github.com/mattjoyce/tarski/blob/v0.3.1/base.go)

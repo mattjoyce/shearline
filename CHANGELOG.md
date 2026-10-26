@@ -5,6 +5,12 @@ Rule-set hashes and answer hashes are part of that: a change to either is listed
 
 ## Unreleased
 
+- **Requires tarski v0.3.1.** Both modules moved up from v0.2.2. No answer, hash or proof byte
+  changes, and the README example prints the same output. v0.3.0 added demand-driven evaluation
+  (`Plan.Demand`, `Options.Goal`), additive. v0.3.1 is a documentation release: Proof and Absence
+  JSON are now pinned by a golden test, the determinism promise says proofs also depend on fact
+  order, and builtin refusals name the argument and show the signature. Shearline does not adopt
+  demand evaluation here. `Load` already sorts the standing facts.
 - **`examples/logsvc` requires the release.** Its `go.mod` requires Shearline v0.2.0 from the
   module proxy; the `replace ../..` directive is gone. ([PR #4](https://github.com/mattjoyce/shearline/pull/4))
 
