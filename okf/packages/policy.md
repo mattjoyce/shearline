@@ -9,7 +9,7 @@ timestamp: 2026-10-22T00:00:00Z
 
 # What it owns
 
-The PARC vocabulary (principal, action, resource, context) and the bundled `rbac.dl`. It owns nothing about how rules are evaluated; that is [the engine, tarski](/packages/datalog.md). A `Policy` is a value built once and safe to share between goroutines. It holds no state a request can change.
+The PARC vocabulary (principal, action, resource, context) and the bundled `rbac.dl`. It owns nothing about how rules are evaluated; that is [the engine, tarski](/packages/datalog.md). A `Policy` is a value built once and safe to share between goroutines. It holds no state a request can change. The current release is v0.2.0, which requires tarski v0.2.2; [CHANGELOG.md](../../CHANGELOG.md) lists what changed from v0.1.0.
 
 # Public surface
 
@@ -45,3 +45,4 @@ The PARC vocabulary (principal, action, resource, context) and the bundled `rbac
 [2] [policy/policy.go](../../policy/policy.go)
 [3] [policy/facts.go](../../policy/facts.go)
 [4] [DESIGN.md, Package policy](../../docs/DESIGN.md)
+[5] [CHANGELOG.md](../../CHANGELOG.md)
