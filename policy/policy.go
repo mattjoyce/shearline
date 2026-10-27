@@ -10,16 +10,26 @@ import (
 	"github.com/mattjoyce/tarski"
 )
 
-// maxDecisionBytes bounds what one decision may derive. A decision is a few joins over
-// one principal's roles, so a megabyte of derived tuples means the grants reachable
-// from the principal are wrong, not large. It is not a knob: a consumer that needs
-// more has a policy that should be narrowed.
+// maxDecisionBytes bounds what one decision may derive. A policy that goes past it is
+// usually wrong, not large: narrow it first. A correct policy over large consumer data
+// can also go past it; Decision.Bytes shows the margin. Configurable bounds and demand
+// evaluation are the planned remedies.
 const maxDecisionBytes = 1 << 20
 
-// maxDecisionSteps bounds the join work of one decision. A policy that visits millions
-// of tuples for one request is wrong, not large, and the deadline alone would let a
-// wide product of duplicates run until it fires. Not a knob, for the same reason.
+// maxDecisionSteps bounds the join work of one decision; the deadline alone would let a
+// wide product of duplicates run until it fires. Past it, as for maxDecisionBytes: narrow
+// first; Decision.Steps shows the margin.
 const maxDecisionSteps = 1 << 22
+
+// Bounds are the limits one decision is evaluated under. Decide and Permitted use the
+// same bounds. Read-only: a policy cannot change them.
+type Bounds struct{ MaxSteps, MaxBytes int }
+
+// Bounds returns the bounds this policy's decisions are evaluated under, for computing
+// the margin from Decision.Steps and Decision.Bytes.
+func (p Policy) Bounds() Bounds {
+	return Bounds{MaxSteps: maxDecisionSteps, MaxBytes: maxDecisionBytes}
+}
 
 //go:embed rbac.dl
 var rbacText string
@@ -75,11 +85,22 @@ type Policy struct {
 // itself. A denial through deny/3 appears inside Why as the negation that held, with
 // Blocked carrying the proof of the deny tuple; a denial by absence shows the farthest
 // literal each allow rule reached.
+//
+// The cost is the engine's evaluation work only: it excludes request preparation, proof
+// construction and why-not processing. It is not latency and not memory; Bytes approximates
+// the encoded size of derived tuples.
+//
+// It is for observation (logs, ledgers, alerts on the margin to the bounds). Do not decide on
+// it: it can change with any tarski version, with no change to the answer.
+//
+// It is in no hash, and a changelog does not list a cost change as an answer change.
 type Decision struct {
 	Allow    bool
 	Proof    tarski.Proof   // why allowed; zero when denied
 	Why      tarski.Absence // why denied: Result.WhyNot("allow", ...); zero when allowed or on error
 	RuleSets []string       // the loaded sets' IDs in load order, e.g. "rbac/1 sha256:..."
+	Steps    int            // evaluation steps (Result.Cost); zero when err != nil
+	Bytes    int            // derived bytes, approximate (Result.Cost); zero when err != nil
 }
 
 // Config is everything a Policy is built from. Context lists every key a request may
@@ -191,10 +212,12 @@ func (p Policy) Decide(ctx context.Context, req Request) (Decision, error) {
 	if err != nil {
 		return d, evalError("decide", err)
 	}
+	steps, bytes := res.Cost()
 	// Proofs are on, so a recorded proof is membership in allow/3.
 	want := tarski.Tuple{tarski.String(req.Principal), tarski.String(req.Action), tarski.String(req.Resource)}
 	if proof, ok := res.Proof("allow", want); ok {
 		d.Allow, d.Proof = true, proof
+		d.Steps, d.Bytes = steps, bytes
 		return d, nil
 	}
 	why, ok := res.WhyNot("allow", want, 0)
@@ -202,6 +225,7 @@ func (p Policy) Decide(ctx context.Context, req Request) (Decision, error) {
 		return d, fmt.Errorf("policy: decide: allow%v is neither proved nor absent", want)
 	}
 	d.Why = why
+	d.Steps, d.Bytes = steps, bytes
 	return d, nil
 }
 

@@ -20,3 +20,5 @@
 * **Change**: Shearline v0.2.2 tagged, a patch on tarski v0.3.2; the current-release pointers say v0.2.2.
 * **Change**: Consumer relations via `Config.Relations` (standing only); a nil map preserves v0.2.2 behavior. Rule sets may read declared relations with recursive rules; refusals wrap `tarski.ErrInvalid` and start `policy: load:`.
 * **Change**: Shearline v0.3.0 tagged, adding consumer relations; the current-release pointers say v0.3.0.
+* **Change**: `Decision.Steps` and `Decision.Bytes` give the evaluation cost of a successful decision, for observation; zero on error. Answers, proofs and `rbac/1` unchanged.
+* **Change**: `Policy.Bounds()` exposes the decision bounds read-only.

@@ -87,11 +87,22 @@ type Decision struct {
     Proof    tarski.Proof     // why allowed; zero when denied
     Why      tarski.Absence   // why denied: Result.WhyNot("allow", …); zero when allowed or on error
     RuleSets []string          // the loaded sets' IDs in load order, e.g. "rbac/1 sha256:…"
+    Steps    int              // evaluation steps (Result.Cost); zero when err != nil
+    Bytes    int              // derived bytes, approximate (Result.Cost); zero when err != nil
 }
 // A deny through deny/3 appears inside Why as the negation `not deny(P, A, R)` that
 // held, with Blocked carrying the proof of the deny tuple. Deny by absence shows the
 // farthest literal each allow rule reached. Every refusal therefore answers "why" from
 // the decision itself, the spec's job story, with no RBAC knowledge in the engine.
+//
+// The cost is the engine's evaluation work only: it excludes request preparation, proof
+// construction and why-not processing. It is not latency and not memory; Bytes approximates
+// the encoded size of derived tuples.
+//
+// It is for observation (logs, ledgers, alerts on the margin to the bounds). Do not decide on
+// it: it can change with any tarski version, with no change to the answer.
+//
+// It is in no hash, and a changelog does not list a cost change as an answer change.
 
 // The fact constructors are how a consumer builds standing facts without learning
 // the engine's vocabulary. Each returns a tarski.Fact for Load or Decide.

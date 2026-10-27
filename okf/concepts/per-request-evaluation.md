@@ -19,7 +19,7 @@ timestamp: 2026-10-22T00:00:00Z
 | `maxDecisionBytes` | `1 << 20` | A decision over one request should never derive a megabyte; if it does, the grants are wrong, not large |
 | `maxDecisionSteps` | `1 << 22` | A decision is a few joins over one principal's roles; millions of visited tuples is a wrong policy |
 
-Both are named constants, invariants and not knobs. `Decide` also turns on `Proofs`. `Permitted` uses the same two bounds without proofs. Details of the options are in [tarski.Evaluate and Options](/api/datalog-evaluate-options.md).
+Both are named constants. A correct policy over large consumer data can go past them; see Cost for observation. `Decide` also turns on `Proofs`. `Permitted` uses the same two bounds without proofs. Details of the options are in [tarski.Evaluate and Options](/api/datalog-evaluate-options.md).
 
 `MaxBytes` charges unescaped lengths, an estimate of the JSON text. `MaxSteps` is exact: every candidate visited by a join or a negation probe counts, and since tarski v0.2.2 so does every rule application and every built-in call (`prefix` is one). The bundled rules make a handful of each per request, far under the bound. Neither can be crossed with a nil error. A crossing is a `*TooLarge` that names which bound (`Bound` is `MaxBytes` or `MaxSteps`), and `Decide` wraps it with the remedy "narrow the grants reachable from this principal".
 
@@ -35,6 +35,10 @@ The whole-module panel found that the first version of `rbac.dl` had `holds(P, R
 It was a fail-closed bug, so never a wrong allow, but it was an availability cliff in the one bundled asset. Confirmed at 50,000 principals. The fix (commit 085d076) seeds `holds`, `permit` and `deny` with `principal(P)`, `action(A)` and `resource(R)`, and a 50,000-principal test holds it.
 
 The review's note on the trade: the unseeded `holds/2` is the truer relation, but the runtime wins. The bounds are per request, so the rules are too. See [the module panel](/reviews/module-panel-2026-10-22.md).
+
+# Cost for observation
+
+`Decision.Steps` and `Decision.Bytes` expose the engine's evaluation work for observation (logs, ledgers, alerts on the margin to the bounds). They are set only on a successful return (allow or deny); on error paths and on `*TooLarge` they remain zero and the cost stays reachable via `errors.As(err, &tl)`. Do not decide on them: they can change with any tarski version, with no change to the answer. They are not latency or memory; `Bytes` approximates the encoded size of derived tuples. They are in no hash, and a changelog does not list a cost change as an answer change. The margin is the cost over `Policy.Bounds()`.
 
 # Consequences for consumer rule sets
 
