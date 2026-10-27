@@ -1,0 +1,61 @@
+# 002 Show what a decision cost
+
+Asked for by: hrchat (`hrchat/kanban/backlog/006-shearline-decision-cost.md`, part 1).
+Owner: shearline-lead. Built by: opencode via _POINTDEV. Release: v0.4.0 (new fields, additive).
+Part 2 of the request (configurable bounds) is card 003, parked. Written in ASD-STE100.
+
+## Now
+
+`Decide` (`policy/policy.go`, `func (p Policy) Decide`) calls `tarski.Evaluate` and discards
+`res.Cost()`. A consumer sees a bound only when a decision fails with `*tarski.TooLarge`. With
+consumer relations (v0.3.0) the cost grows with the consumer's standing data, so a consumer must
+be able to watch the margin before a valid request is refused.
+
+## Change
+
+1. Add two fields to `Decision`, after `RuleSets`:
+   ```go
+   Steps int // evaluation steps (Result.Cost); zero when err != nil
+   Bytes int // derived bytes, approximate (Result.Cost); zero when err != nil
+   ```
+2. In `Decide`, set them from `res.Cost()` only on a return with `err == nil`, allowed or denied.
+   The return after `WhyNot` fails (`"is neither proved nor absent"`) is an error: leave both zero
+   there. Every early return before `Evaluate` leaves both zero.
+3. Do not copy the cost into the `Decision` on a `*TooLarge`. It stays reachable through
+   `errors.As(err, &tl)` as `tl.Steps` and `tl.Bytes` (`evalError` wraps with `%w`); test that.
+4. Doc comment on the two fields (and on `Decision`), in these words or near them:
+   - The cost is the engine's evaluation work only: it excludes request preparation, proof
+     construction and why-not processing. It is not latency and not memory; Bytes approximates
+     the encoded size of derived tuples.
+   - It is for observation (logs, ledgers, alerts on the margin to the bounds). Do not decide on
+     it: it can change with any tarski version, with no change to the answer.
+   - It is in no hash, and a changelog does not list a cost change as an answer change.
+5. Replace the "It is not a knob" sentences on `maxDecisionBytes` and `maxDecisionSteps` with:
+   a policy that goes past a bound is usually wrong, not large, so narrow it first; a correct
+   policy over large consumer data can also go past the current budget; `Decision.Steps` and
+   `Decision.Bytes` show the margin; card 003 (configurable bounds) and demand evaluation are the
+   planned remedies. Keep the constants' values.
+6. `Permitted` does not change.
+
+## Acceptance
+
+- [ ] `Decision.Steps > 0` and `Decision.Bytes > 0` on a successful allow, and on a successful
+      deny, in tests.
+- [ ] Both are zero on each error path: a malformed request (`ErrRequest`), a cancelled context,
+      and a `*TooLarge`. Use the v0.3.0 consumer-relations fixture of a 2,000-person single chain
+      for the `*TooLarge` (it exceeds the byte bound).
+- [ ] On that `*TooLarge`, `errors.As(err, &tl)` works and `tl.Bytes > tl.MaxBytes`.
+- [ ] A larger fixture gives a larger cost: the same consumer `manages` policy over a 100-person
+      and a 1,000-person binary tree, same request shape, and `Steps` and `Bytes` both larger for
+      1,000. Assert the order, not exact numbers.
+- [ ] Same request twice gives the same `Steps` and `Bytes` (deterministic within one tarski version).
+- [ ] No test pins an exact cost number. Answers, proofs and `rbac/1 sha256:0bf5a121...` do not
+      change; every existing test passes unedited.
+- [ ] Docs: `CHANGELOG.md` Unreleased entry (at the top, above v0.3.0); `docs/DESIGN.md` Decision
+      block; `okf/api/policy-decide.md`; `okf/concepts/per-request-evaluation.md` (a paragraph on
+      watching the margin); `okf/log.md` one `* **Change**:` line. Okf validator CONFORMANT.
+- [ ] Gate passes. Do not tag. Do not merge.
+
+## Out of scope
+
+- Configurable bounds (card 003). Cost for `Permitted`. An engine version on `Decision`.
