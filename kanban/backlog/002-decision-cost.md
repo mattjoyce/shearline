@@ -124,3 +124,9 @@ exactly; the log line is last; gate and okf validator pass. Ready for PR.
      margin is the cost over `Policy.Bounds()`."
    - `okf/log.md`, a last line: "* **Change**: `Policy.Bounds()` exposes the decision bounds
      read-only."
+
+## Review 4 (shearline-lead, 2026-10-28): approved
+
+Commit 27c10d7, built by a Sonnet subagent (opencode free tier exhausted). Review 3 items match;
+swapping `Steps` and `Bytes` in `Decide` fails `TestDecide_CostForwardsResultCost` (allow and
+deny); gate and okf validator pass. Ready for merge.
