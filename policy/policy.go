@@ -10,20 +10,15 @@ import (
 	"github.com/mattjoyce/tarski"
 )
 
-// maxDecisionBytes bounds what one decision may derive. A decision is a few joins over
-// one principal's roles, so a megabyte of derived tuples means the grants reachable
-// from the principal are wrong, not large. A policy that goes past a bound is usually
-// wrong, not large, so narrow it first; a correct policy over large consumer data can
-// also go past the current budget; Decision.Steps and Decision.Bytes show the margin;
-// card 003 (configurable bounds) and demand evaluation are the planned remedies.
+// maxDecisionBytes bounds what one decision may derive. A policy that goes past it is
+// usually wrong, not large: narrow it first. A correct policy over large consumer data
+// can also go past it; Decision.Bytes shows the margin. Configurable bounds and demand
+// evaluation are the planned remedies.
 const maxDecisionBytes = 1 << 20
 
-// maxDecisionSteps bounds the join work of one decision. A policy that visits millions
-// of tuples for one request is wrong, not large, and the deadline alone would let a
-// wide product of duplicates run until it fires. A policy that goes past a bound is
-// usually wrong, not large, so narrow it first; a correct policy over large consumer
-// data can also go past the current budget; Decision.Steps and Decision.Bytes show the
-// margin; card 003 (configurable bounds) and demand evaluation are the planned remedies.
+// maxDecisionSteps bounds the join work of one decision; the deadline alone would let a
+// wide product of duplicates run until it fires. Past it, as for maxDecisionBytes: narrow
+// first; Decision.Steps shows the margin.
 const maxDecisionSteps = 1 << 22
 
 //go:embed rbac.dl

@@ -5,13 +5,11 @@ Rule-set hashes and answer hashes are part of that: a change to either is listed
 
 ## Unreleased
 
-- **Decision cost.** `Decision` gains `Steps` and `Bytes` (from `tarski.Result.Cost()`) on
-  successful allow or deny; they are zero on error paths, and on a `*TooLarge` the cost stays on
-  the error (`errors.As` to `*tarski.TooLarge`). `maxDecisionBytes` and `maxDecisionSteps`
-  comments say a policy past a bound is usually wrong, not large, so narrow it first; a correct
-  policy over large consumer data can also go past the current budget; `Decision.Steps` and
-  `Decision.Bytes` show the margin; card 003 and demand evaluation are planned remedies.
-  Answers, proofs, `rbac/1` and hashes are unchanged.
+- **Decision cost.** `Decision` gains `Steps` and `Bytes`, the evaluation cost from
+  `tarski.Result.Cost()`, on every successful decision, allowed or denied. They are zero when
+  `Decide` returns an error; on a `*TooLarge` the cost is on the error (`errors.As`). They are for
+  observation, in no hash, and may change with any tarski version. Answers, proofs and `rbac/1`
+  are unchanged.
 
 ## [v0.3.0](https://github.com/mattjoyce/shearline/releases/tag/v0.3.0) - 2026-10-28
 
