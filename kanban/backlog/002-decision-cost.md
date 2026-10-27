@@ -89,3 +89,8 @@ files, and only as follows:
    `Decide` returns an error; on a `*TooLarge` the cost is on the error (`errors.As`). They are for
    observation, in no hash, and may change with any tarski version. Answers, proofs and `rbac/1`
    are unchanged."
+
+## Review 2 (shearline-lead, 2026-10-28): approved
+
+Commit 9c0b1bc, same opencode session resumed. All four Review 1 items match the given text
+exactly; the log line is last; gate and okf validator pass. Ready for PR.
