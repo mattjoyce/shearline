@@ -9,7 +9,7 @@ timestamp: 2026-10-22T00:00:00Z
 
 # What it owns
 
-The PARC vocabulary (principal, action, resource, context) and the bundled `rbac.dl`. It owns nothing about how rules are evaluated; that is [the engine, tarski](/packages/datalog.md). A `Policy` is a value built once and safe to share between goroutines. It holds no state a request can change. The current release is v0.3.0, which requires tarski v0.3.2; [CHANGELOG.md](../../CHANGELOG.md) lists what changed from v0.1.0.
+The PARC vocabulary (principal, action, resource, context) and the bundled `rbac.dl`. It owns nothing about how rules are evaluated; that is [the engine, tarski](/packages/datalog.md). A `Policy` is a value built once and safe to share between goroutines. It holds no state a request can change. The current release is v0.4.0, which requires tarski v0.3.2; [CHANGELOG.md](../../CHANGELOG.md) lists what changed from v0.1.0.
 
 # Public surface
 
@@ -18,6 +18,7 @@ The PARC vocabulary (principal, action, resource, context) and the bundled `rbac
 | `Config` | struct | `Standing`, `Sets`, `Context`, `Relations` | [Load](/api/policy-config-load.md) |
 | `Load` | func | Verify, compile, hold standing facts | [Load](/api/policy-config-load.md) |
 | `Policy.Decide` | method | One request to one `Decision` | [Decide](/api/policy-decide.md) |
+| `Policy.Bounds` | method | The decision bounds, read-only, for the margin from `Decision.Steps` and `Decision.Bytes` | [per-request evaluation](/concepts/per-request-evaluation.md) |
 | `Policy.Permitted` | method | Grant prefixes a principal holds for an action | [Permitted](/api/policy-permitted.md) |
 | `Request`, `Decision` | structs | PARC in, allow plus proof or why-not out | [Decide](/api/policy-decide.md) |
 | `Role`, `Inherits`, `Grant`, `Deny` | funcs | Build standing facts | [Fact constructors](/api/policy-fact-constructors.md) |

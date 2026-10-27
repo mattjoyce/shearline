@@ -22,3 +22,4 @@
 * **Change**: Shearline v0.3.0 tagged, adding consumer relations; the current-release pointers say v0.3.0.
 * **Change**: `Decision.Steps` and `Decision.Bytes` give the evaluation cost of a successful decision, for observation; zero on error. Answers, proofs and `rbac/1` unchanged.
 * **Change**: `Policy.Bounds()` exposes the decision bounds read-only.
+* **Change**: Shearline v0.4.0 tagged, adding decision cost and `Policy.Bounds()`; the current-release pointers say v0.4.0.
