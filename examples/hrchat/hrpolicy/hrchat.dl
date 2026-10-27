@@ -1,0 +1,72 @@
+% hrchat/1: who may do what to whose HR record. Loaded after Shearline's bundled rbac/1,
+% which supplies holds/2 (roles with inheritance), the allow/3 rule, and deny/3 from
+% denied/3 facts. This set adds the paths that derive permit/3 and the denials that no
+% path overrides.
+%
+% One namespace: an employee is "emp/<id>" whether asking or asked about. An action is
+% "<verb>.<field>": read.leave, write.bank, approve.salary. Every rule is seeded by the
+% request's principal, action or resource, so one decision derives one requester's world.
+%
+% Standing relations, from the org and the catalogue:
+%   reports_to(E, M)       E's manager is M
+%   dept(E, D)             E is in department D
+%   hr_partner(P, D)       P is the HR business partner for department D
+%   verb(A, V)             action A's verb; writes(V) marks the verbs that change state
+%   level(A, L)            "low" or "high"
+%   self_may(A)            actions one may take on one's own record
+%   manager_may(A)         a direct manager on a direct report, and nobody further up
+%   hr_may(A)              the HR partner on a member of their department
+%   role_may(Role, A)      a standing role on every employee record
+%   also_needs(A, Req)     an attestation an action needs beyond its level
+%   channel(C)             the channels a request may arrive on
+%   channel_forbids(C, A)  actions a channel never carries
+% Request context, declared in Go: channel, guardrail, mfa, confirmed, high_reads, requester.
+
+% ---- Attestation: what the request must carry before any path is considered. ----------
+
+% needs(A, Req): the attestations action A requires, from its level and the catalogue.
+needs(A, "mfa")       :- action(A), level(A, "high").
+needs(A, "velocity")  :- action(A), level(A, "high"), verb(A, "read").
+needs(A, "confirmed") :- action(A), level(A, "high"), verb(A, V), writes(V).
+needs(A, Req)         :- action(A), also_needs(A, Req).
+
+% met(Req): the request carries the attestation. Each is read positively, so one the
+% caller omits is one that is not met, and the request fails closed.
+met("mfa")       :- context("mfa", true).
+met("confirmed") :- context("confirmed", true).
+met("velocity")  :- context("high_reads", N), N < 25.
+met("four_eyes") :- principal(P), context("requester", Q), Q != P.
+
+unmet(A) :- action(A), needs(A, Req), not met(Req).
+
+% attested(A): the guardrail passed this turn, and the channel is known and carries A.
+attested(A) :- action(A), context("guardrail", "clean"), context("channel", C), channel(C), not channel_forbids(C, A).
+
+cleared(A) :- attested(A), not unmet(A).
+
+% ---- Relationships, computed for the requester alone. ---------------------------------
+
+% A manager reaches their direct team and no further: a skip-level, an executive included,
+% asks HR. up/2 is the requester's own reporting line, for the denial below.
+direct(P, S) :- principal(P), reports_to(S, P).
+up(P, M)     :- principal(P), reports_to(P, M).
+up(P, M)     :- up(P, X), reports_to(X, M).
+
+% ---- Paths to a permit. Each ends in cleared(A), so a refusal names what was missing. ---
+
+permit(P, A, P) :- principal(P), action(A), resource(P), self_may(A), cleared(A).
+permit(P, A, S) :- principal(P), action(A), resource(S), direct(P, S), manager_may(A), cleared(A).
+permit(P, A, S) :- principal(P), action(A), resource(S), hr_partner(P, D), dept(S, D), hr_may(A), cleared(A).
+permit(P, A, S) :- principal(P), action(A), resource(S), holds(P, Role), role_may(Role, A), dept(S, _), cleared(A).
+
+% Every employee holds "everyone"; the entitlements give it the directory.
+holds(P, "everyone") :- principal(P), dept(P, _).
+
+% ---- Separation of duties: denials that no path overrides. ----------------------------
+
+% Your own record is reachable by the self path only: no role or relationship widens
+% what you may do to yourself.
+deny(P, A, P) :- principal(P), action(A), resource(P), not self_may(A).
+
+% Nobody touches high data of anyone above them in their own reporting line.
+deny(P, A, M) :- principal(P), action(A), resource(M), up(P, M), level(A, "high").
