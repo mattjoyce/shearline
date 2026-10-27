@@ -94,3 +94,33 @@ files, and only as follows:
 
 Commit 9c0b1bc, same opencode session resumed. All four Review 1 items match the given text
 exactly; the log line is last; gate and okf validator pass. Ready for PR.
+
+## Review 3 (shearline-lead, 2026-10-28): two additions (from GPT's review of PR #9)
+
+1. Test gap: swapping `Steps` and `Bytes` in `Decide` passes every cost test. In
+   `policy/cost_test.go`, add `TestDecide_CostForwardsResultCost`: for an allow and for a deny,
+   build the same base `Decide` builds (`p.base.With(req.facts()...)`), call `tarski.Evaluate` with
+   `tarski.Options{MaxBytes: maxDecisionBytes, MaxSteps: maxDecisionSteps, Proofs: true}`, and
+   assert `d.Steps == steps` and `d.Bytes == bytes` from `res.Cost()`. Pick a fixture where steps
+   and bytes differ, and assert `steps != bytes` so a swap cannot pass by coincidence.
+2. Read-only bounds, so a consumer can compute the margin without copying private constants.
+   In `policy/policy.go`, add exactly:
+   ```go
+   // Bounds are the limits one decision is evaluated under. Decide and Permitted use the
+   // same bounds. Read-only: a policy cannot change them.
+   type Bounds struct{ MaxSteps, MaxBytes int }
+
+   // Bounds returns the bounds this policy's decisions are evaluated under, for computing
+   // the margin from Decision.Steps and Decision.Bytes.
+   func (p Policy) Bounds() Bounds { return Bounds{MaxSteps: maxDecisionSteps, MaxBytes: maxDecisionBytes} }
+   ```
+   Add `TestPolicy_Bounds` asserting the two values equal the constants. Do not add a `Config`
+   field (that is card 003).
+3. Docs, one line each, no other change:
+   - `CHANGELOG.md` Unreleased: add the bullet "- **Bounds.** `Policy.Bounds()` returns the
+     `MaxSteps` and `MaxBytes` a decision is evaluated under, read-only, so a consumer can compute
+     the margin from `Decision.Steps` and `Decision.Bytes`."
+   - `okf/concepts/per-request-evaluation.md`, at the end of `# Cost for observation`, add: "The
+     margin is the cost over `Policy.Bounds()`."
+   - `okf/log.md`, a last line: "* **Change**: `Policy.Bounds()` exposes the decision bounds
+     read-only."
