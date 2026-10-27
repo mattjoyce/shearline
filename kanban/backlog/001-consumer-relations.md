@@ -208,3 +208,10 @@ through `permit/3`, so `allow` holds with the `manages` rules deleted. Fix:
    peer, or `e1` asking about itself; name the reason in a comment.
 5. Prove the tests now depend on recursion: temporarily delete the second `manages` rule in each
    test, run them, confirm both FAIL, restore the rule. Say in your final list which tests failed.
+
+## Review 5 (shearline-lead, 2026-10-28): approved
+
+Commit 26f7cd9 (opencode session ses_e82c6986fffecxgHnsQ9BgFHZq, via _POINTDEV). All five Review 4
+items are done. Checked independently: with the recursive `manages` rule deleted, both
+`TestConsumerRelations_Recursive` and `TestConsumerRelations_BoundsDepth12` fail; restored, both
+pass. Re-measured cost unchanged: steps 41,980, bytes 259,225. Gate passes. Ready for merge.
