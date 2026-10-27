@@ -15,7 +15,7 @@ The PARC vocabulary (principal, action, resource, context) and the bundled `rbac
 
 | Name | Kind | Summary | Concept or API |
 |---|---|---|---|
-| `Config` | struct | `Standing`, `Sets`, `Context` | [Load](/api/policy-config-load.md) |
+| `Config` | struct | `Standing`, `Sets`, `Context`, `Relations` | [Load](/api/policy-config-load.md) |
 | `Load` | func | Verify, compile, hold standing facts | [Load](/api/policy-config-load.md) |
 | `Policy.Decide` | method | One request to one `Decision` | [Decide](/api/policy-decide.md) |
 | `Policy.Permitted` | method | Grant prefixes a principal holds for an action | [Permitted](/api/policy-permitted.md) |
@@ -33,6 +33,7 @@ The PARC vocabulary (principal, action, resource, context) and the bundled `rbac
 - The decision bounds are constants, not knobs. See [per-request evaluation](/concepts/per-request-evaluation.md).
 - Resource names are matched as given. See [prefix grants](/concepts/prefix-grants.md).
 - `RBAC()` and `Schema()` return fresh values so no caller can mutate what later Loads compile against. `RBAC` is parsed at package init, so a broken asset fails at process start (`TestRBAC_Parses` holds it).
+- Consumer relations may be declared via `Config.Relations` (standing only). See [consumer relations](/concepts/consumer-relations.md).
 - Vocabulary rule: "importer", "source", "projection" and "tenant" never appear in the module; the consumer owns what names mean.
 
 # Files

@@ -67,7 +67,8 @@ type Policy struct {
 	base tarski.Base
 	ids  []string
 
-	context map[string]tarski.Kind // the declared keys; a private copy
+	context   map[string]tarski.Kind // the declared keys; a private copy
+	relations map[string]Relation    // the declared relations; a private copy
 }
 
 // Decision is the answer to one request, with what stood behind it. Proof is why it was
@@ -91,11 +92,18 @@ type Decision struct {
 // schema, not attestation. A key a rule relies on (a tenant, a network, an MFA state)
 // is the consumer's to require before Decide, or to require positively in the rule,
 // since a rule that reads its absence through negation holds when the caller omits it.
+//
+// Relations declares consumer base relations that rule sets may read as standing facts.
+// A nil map declares none and preserves v0.2.2 behaviour.
 type Config struct {
-	Standing []tarski.Fact
-	Sets     []tarski.RuleSet
-	Context  map[string]tarski.Kind
+	Standing  []tarski.Fact
+	Sets      []tarski.RuleSet
+	Context   map[string]tarski.Kind
+	Relations map[string]Relation
 }
+
+// Relation is one consumer base relation: one kind for each column, in order.
+type Relation struct{ Kinds []tarski.Kind }
 
 // Load verifies each rule set against its hash, compiles Sets in order over Schema() and
 // holds Standing. The first set is normally RBAC(); the plan must define allow/3 and
@@ -104,7 +112,8 @@ type Config struct {
 // by absence. Any error is the consumer's to fix before serving.
 //
 // The context keys and their kinds come only from Config.Context; see it for what a rule
-// or a request may name.
+// or a request may name. Config.Relations declares consumer base relations (standing only);
+// a nil map declares none.
 //
 // The standing facts are sorted (by relation, then by each tuple position's kind and text)
 // before they are held, so a proof is a function of the policy's content and not of the
@@ -115,6 +124,10 @@ type Config struct {
 func Load(cfg Config) (Policy, error) {
 	standing, sets := cfg.Standing, cfg.Sets
 	declared, err := checkContext(cfg.Context)
+	if err != nil {
+		return Policy{}, fmt.Errorf("policy: load: %w", err)
+	}
+	declaredRelations, err := checkRelations(cfg.Relations)
 	if err != nil {
 		return Policy{}, fmt.Errorf("policy: load: %w", err)
 	}
@@ -134,7 +147,8 @@ func Load(cfg Config) (Policy, error) {
 		programs = append(programs, s.Program)
 		ids[i] = s.ID()
 	}
-	plan, err := tarski.Compile(schema(declared), programs...)
+	schema := schemaWithRelations(declared, declaredRelations)
+	plan, err := tarski.Compile(schema, programs...)
 	if err != nil {
 		return Policy{}, fmt.Errorf("policy: load: %w", err)
 	}
@@ -147,11 +161,24 @@ func Load(cfg Config) (Policy, error) {
 	if err := requireRelations(plan); err != nil {
 		return Policy{}, fmt.Errorf("policy: load: %w", err)
 	}
-	b, err := tarski.NewBase(schema(declared), standing...)
+	b, err := tarski.NewBase(schema, standing...)
 	if err != nil {
 		return Policy{}, fmt.Errorf("policy: load: %w", err)
 	}
-	return Policy{plan: plan, base: b, ids: ids, context: declared}, nil
+	return Policy{plan: plan, base: b, ids: ids, context: declared, relations: copyRelations(declaredRelations)}, nil
+}
+
+func copyRelations(in map[string]Relation) map[string]Relation {
+	if in == nil {
+		return map[string]Relation{}
+	}
+	out := make(map[string]Relation, len(in))
+	for k, v := range in {
+		kinds := make([]tarski.Kind, len(v.Kinds))
+		copy(kinds, v.Kinds)
+		out[k] = Relation{Kinds: kinds}
+	}
+	return out
 }
 
 // Decide is total: nil error with Allow=false is deny by absence; a non-nil error is
@@ -256,6 +283,9 @@ func sortedFacts(facts []tarski.Fact) []tarski.Fact {
 
 // checkContext copies the declared context and refuses a key or kind that cannot be one.
 func checkContext(in map[string]tarski.Kind) (map[string]tarski.Kind, error) {
+	if in == nil {
+		return map[string]tarski.Kind{}, nil
+	}
 	out := make(map[string]tarski.Kind, len(in))
 	for k, kind := range in {
 		if k == "" {
@@ -265,6 +295,47 @@ func checkContext(in map[string]tarski.Kind) (map[string]tarski.Kind, error) {
 			return nil, fmt.Errorf("%w: Config.Context key %q has no such kind (%d)", tarski.ErrInvalid, k, kind)
 		}
 		out[k] = kind
+	}
+	return out, nil
+}
+
+var baseRelations = map[string]bool{
+	"principal": true,
+	"action":    true,
+	"resource":  true,
+	"context":   true,
+	"role":      true,
+	"inherits":  true,
+	"grants":    true,
+	"denied":    true,
+}
+
+func checkRelations(in map[string]Relation) (map[string]Relation, error) {
+	if in == nil {
+		return map[string]Relation{}, nil
+	}
+	out := make(map[string]Relation, len(in))
+	for name, rel := range in {
+		if name == "" {
+			return nil, fmt.Errorf("%w: consumer relation has an empty name", tarski.ErrInvalid)
+		}
+		if baseRelations[name] {
+			return nil, fmt.Errorf("%w: %s is a base relation; it cannot be declared again", tarski.ErrInvalid, name)
+		}
+		if requestRelations[name] {
+			return nil, fmt.Errorf("%w: %s is a base relation; it cannot be declared again", tarski.ErrInvalid, name)
+		}
+		if len(rel.Kinds) == 0 {
+			return nil, fmt.Errorf("%w: consumer relation %s has no columns", tarski.ErrInvalid, name)
+		}
+		kinds := make([]tarski.Kind, len(rel.Kinds))
+		for i, k := range rel.Kinds {
+			if k != tarski.KindString && k != tarski.KindNumber && k != tarski.KindBool {
+				return nil, fmt.Errorf("%w: consumer relation %s has no such kind (%d)", tarski.ErrInvalid, name, k)
+			}
+			kinds[i] = k
+		}
+		out[name] = Relation{Kinds: kinds}
 	}
 	return out, nil
 }

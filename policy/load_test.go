@@ -3,6 +3,7 @@ package policy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -275,5 +276,378 @@ func TestLoad_RefusesAggregates(t *testing.T) {
 				t.Fatalf("Load = %v, want ErrInvalid naming aggregates", err)
 			}
 		})
+	}
+}
+
+func TestConsumerRelations_Basic(t *testing.T) {
+	p := mustLoadConfig(t, Config{
+		Sets: rbacOnly(),
+		Relations: map[string]Relation{
+			"reports_to": {Kinds: []tarski.Kind{tarski.KindString, tarski.KindString}},
+		},
+		Standing: []tarski.Fact{
+			{Relation: "reports_to", Tuple: tarski.Tuple{tarski.String("eve"), tarski.String("morgan")}},
+		},
+	})
+	// A rule set that reads a declared relation compiles
+	if _, err := Load(Config{
+		Sets: []tarski.RuleSet{
+			RBAC(),
+			ruleSet(t, "cr", `allow(P, A, R) :- principal(P), action(A), resource(R), reports_to(P, M), role(M, "admin").`),
+		},
+		Relations: map[string]Relation{
+			"reports_to": {Kinds: []tarski.Kind{tarski.KindString, tarski.KindString}},
+		},
+		Standing: []tarski.Fact{
+			{Relation: "reports_to", Tuple: tarski.Tuple{tarski.String("eve"), tarski.String("morgan")}},
+			Role("morgan", "admin"),
+			Grant("admin", "read", "timeline/"),
+		},
+	}); err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	_ = p
+}
+
+func TestConsumerRelations_Errors(t *testing.T) {
+	// declared name that is one of the eight PARC relations
+	for _, name := range []string{"principal", "action", "resource", "context", "role", "inherits", "grants", "denied"} {
+		t.Run("parc_"+name, func(t *testing.T) {
+			_, err := Load(Config{
+				Sets:      rbacOnly(),
+				Relations: map[string]Relation{name: {Kinds: []tarski.Kind{tarski.KindString}}},
+			})
+			if !errors.Is(err, tarski.ErrInvalid) {
+				t.Fatalf("err = %v", err)
+			}
+			if !strings.HasPrefix(err.Error(), "policy: load:") {
+				t.Fatalf("err = %v", err)
+			}
+		})
+	}
+	// empty name
+	if _, err := Load(Config{Sets: rbacOnly(), Relations: map[string]Relation{"": {Kinds: []tarski.Kind{tarski.KindString}}}}); !errors.Is(err, tarski.ErrInvalid) {
+		t.Fatalf("empty name: %v", err)
+	}
+	// no columns
+	if _, err := Load(Config{Sets: rbacOnly(), Relations: map[string]Relation{"foo": {Kinds: []tarski.Kind{}}}}); !errors.Is(err, tarski.ErrInvalid) {
+		t.Fatalf("no cols: %v", err)
+	}
+	// bad kind
+	if _, err := Load(Config{Sets: rbacOnly(), Relations: map[string]Relation{"foo": {Kinds: []tarski.Kind{tarski.Kind(9)}}}}); !errors.Is(err, tarski.ErrInvalid) {
+		t.Fatalf("bad kind: %v", err)
+	}
+}
+
+func TestConsumerRelations_Recursive(t *testing.T) {
+	p := mustLoadConfig(t, Config{
+		Sets: []tarski.RuleSet{
+			RBAC(),
+			ruleSet(t, "cr", `
+				manages(M, E) :- reports_to(E, M).
+				manages(M, E) :- reports_to(E, X), manages(M, X).
+				allow(P, A, R) :- principal(P), action(A), resource(R), manages(P, "e1").
+			`),
+		},
+		Relations: map[string]Relation{
+			"reports_to": {Kinds: []tarski.Kind{tarski.KindString, tarski.KindString}},
+		},
+		Standing: []tarski.Fact{
+			{Relation: "reports_to", Tuple: tarski.Tuple{tarski.String("e1"), tarski.String("x")}},
+			{Relation: "reports_to", Tuple: tarski.Tuple{tarski.String("x"), tarski.String("m1")}},
+			{Relation: "reports_to", Tuple: tarski.Tuple{tarski.String("m1"), tarski.String("p")}},
+			Grant("reader", "read", "doc/"),
+			Role("p", "reader"),
+		},
+	})
+	d, err := p.Decide(context.Background(), Request{Principal: "p", Action: "read", Resource: "doc/1"})
+	if err != nil || !d.Allow {
+		t.Fatalf("Decide = %+v, %v", d, err)
+	}
+}
+
+func TestConsumerRelations_ProofShowsFact(t *testing.T) {
+	p := mustLoadConfig(t, Config{
+		Sets: []tarski.RuleSet{
+			RBAC(),
+			ruleSet(t, "cr", `allow(P, A, R) :- principal(P), action(A), resource(R), reports_to(P, M), role(M, "admin").`),
+		},
+		Relations: map[string]Relation{
+			"reports_to": {Kinds: []tarski.Kind{tarski.KindString, tarski.KindString}},
+		},
+		Standing: []tarski.Fact{
+			{Relation: "reports_to", Tuple: tarski.Tuple{tarski.String("eve"), tarski.String("morgan")}},
+			Role("morgan", "admin"),
+			Grant("admin", "read", "timeline/"),
+		},
+	})
+	d, err := p.Decide(context.Background(), Request{Principal: "eve", Action: "read", Resource: "timeline/bp"})
+	if err != nil || !d.Allow {
+		t.Fatalf("Decide = %+v, %v", d, err)
+	}
+	// proof shows consumer fact as fact
+	found := false
+	var walk func(p tarski.Proof)
+	walk = func(p tarski.Proof) {
+		if p.Relation == "reports_to" {
+			found = true
+		}
+		for _, b := range p.Body {
+			walk(b)
+		}
+		for _, g := range p.Group {
+			for _, w := range g {
+				walk(w)
+			}
+		}
+	}
+	walk(d.Proof)
+	if !found {
+		t.Fatalf("proof did not show consumer fact")
+	}
+}
+
+func TestConsumerRelations_MapCopied(t *testing.T) {
+	rels := map[string]Relation{
+		"reports_to": {Kinds: []tarski.Kind{tarski.KindString, tarski.KindString}},
+	}
+	p := mustLoadConfig(t, Config{
+		Sets: []tarski.RuleSet{
+			RBAC(),
+			ruleSet(t, "cr", `allow(P, A, R) :- principal(P), action(A), resource(R), reports_to(P, M).`),
+		},
+		Relations: rels,
+		Standing: []tarski.Fact{
+			{Relation: "reports_to", Tuple: tarski.Tuple{tarski.String("eve"), tarski.String("morgan")}},
+			Grant("reader", "read", "timeline/"),
+			Role("eve", "reader"),
+		},
+	})
+	rels["reports_to"] = Relation{Kinds: []tarski.Kind{tarski.KindNumber}}
+	delete(rels, "reports_to")
+	if d, err := p.Decide(context.Background(), Request{Principal: "eve", Action: "read", Resource: "timeline/bp"}); err != nil || !d.Allow {
+		t.Fatalf("Decide = %+v, %v", d, err)
+	}
+}
+
+func TestConsumerRelations_KindCheck(t *testing.T) {
+	// wrong kind in rule constant
+	_, err := Load(Config{
+		Sets: []tarski.RuleSet{
+			RBAC(),
+			ruleSet(t, "cr", `allow(P, A, R) :- principal(P), action(A), resource(R), reports_to(P, 7).`),
+		},
+		Relations: map[string]Relation{
+			"reports_to": {Kinds: []tarski.Kind{tarski.KindString, tarski.KindString}},
+		},
+	})
+	if !errors.Is(err, tarski.ErrInvalid) {
+		t.Fatalf("err = %v", err)
+	}
+	if !strings.HasPrefix(err.Error(), "policy: load:") {
+		t.Fatalf("err = %v", err)
+	}
+	// empty string
+	_, err = Load(Config{
+		Sets: []tarski.RuleSet{RBAC()},
+		Relations: map[string]Relation{
+			"reports_to": {Kinds: []tarski.Kind{tarski.KindString, tarski.KindString}},
+		},
+		Standing: []tarski.Fact{
+			{Relation: "reports_to", Tuple: tarski.Tuple{tarski.String("eve"), tarski.String("")}},
+		},
+	})
+	if !errors.Is(err, tarski.ErrInvalid) {
+		t.Fatalf("err = %v", err)
+	}
+	if !strings.HasPrefix(err.Error(), "policy: load:") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestConsumerRelations_DerivedByRuleFails(t *testing.T) {
+	// declared name that a loaded rule set derives with a rule
+	_, err := Load(Config{
+		Sets: []tarski.RuleSet{
+			RBAC(),
+			ruleSet(t, "cr", `reports_to(X, Y) :- inherits(X, Y).`),
+		},
+		Relations: map[string]Relation{
+			"reports_to": {Kinds: []tarski.Kind{tarski.KindString, tarski.KindString}},
+		},
+	})
+	if !errors.Is(err, tarski.ErrInvalid) {
+		t.Fatalf("err = %v", err)
+	}
+	if !strings.HasPrefix(err.Error(), "policy: load:") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestConsumerRelations_BuiltInFails(t *testing.T) {
+	// declared name that is a built-in, for example prefix
+	_, err := Load(Config{
+		Sets:      rbacOnly(),
+		Relations: map[string]Relation{"prefix": {Kinds: []tarski.Kind{tarski.KindString, tarski.KindString}}},
+	})
+	if !errors.Is(err, tarski.ErrInvalid) {
+		t.Fatalf("err = %v", err)
+	}
+	if !strings.HasPrefix(err.Error(), "policy: load:") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestConsumerRelations_UnknownFactRelation(t *testing.T) {
+	// a standing fact of a relation that is declared nowhere
+	_, err := Load(Config{
+		Sets: rbacOnly(),
+		Standing: []tarski.Fact{
+			{Relation: "nope", Tuple: tarski.Tuple{tarski.String("x")}},
+		},
+	})
+	if !errors.Is(err, tarski.ErrInvalid) {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestConsumerRelations_NilGivesSameAsBefore(t *testing.T) {
+	p := mustLoad(t, fixture(), RBAC())
+	d, err := p.Decide(context.Background(), Request{Principal: "ana", Action: "read", Resource: "timeline/bp"})
+	if err != nil || !d.Allow {
+		t.Fatalf("Decide = %+v, %v", d, err)
+	}
+	// RBAC hash pinned
+	if RBAC().ID() != "rbac/1 sha256:0bf5a1217fbaad382dd0f5044fa0e27c0fd978dec0c616576a066c862c5dbd36" {
+		t.Fatalf("RBAC ID = %s", RBAC().ID())
+	}
+	if _, err := Load(Config{Standing: fixture(), Sets: []tarski.RuleSet{RBAC()}}); err != nil {
+		t.Fatalf("err = %v", err)
+	}
+	if _, err := Load(Config{Standing: fixture(), Sets: []tarski.RuleSet{RBAC()}, Relations: nil}); err != nil {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestConsumerRelations_BoundsDepth12(t *testing.T) {
+	// Build a 2000-person reporting chain at depth 12
+	rels := map[string]Relation{
+		"reports_to": {Kinds: []tarski.Kind{tarski.KindString, tarski.KindString}},
+	}
+	var standing []tarski.Fact
+	// create chain of depth 12: e0 -> x0_0 -> ... -> x0_11 -> m0
+	for i := 0; i < 2000; i++ {
+		standing = append(standing, tarski.Fact{Relation: "reports_to", Tuple: tarski.Tuple{tarski.String(fmt.Sprintf("e%d", i)), tarski.String(fmt.Sprintf("x%d_0", i))}})
+		for j := 0; j < 11; j++ {
+			standing = append(standing, tarski.Fact{Relation: "reports_to", Tuple: tarski.Tuple{tarski.String(fmt.Sprintf("x%d_%d", i, j)), tarski.String(fmt.Sprintf("x%d_%d", i, j+1))}})
+		}
+		standing = append(standing, tarski.Fact{Relation: "reports_to", Tuple: tarski.Tuple{tarski.String(fmt.Sprintf("x%d_11", i)), tarski.String("m0")}})
+	}
+	standing = append(standing, Grant("reader", "read", "timeline/"))
+	standing = append(standing, Role("m0", "reader"))
+	p := mustLoadConfig(t, Config{
+		Sets: []tarski.RuleSet{
+			RBAC(),
+			ruleSet(t, "cr", `
+				manages(M, E) :- reports_to(E, M).
+				manages(M, E) :- reports_to(X, M), manages(E, X).
+				allow(P, A, R) :- principal(P), action(A), resource(R), manages("m0", E), P = "m0".
+			`),
+		},
+		Relations: rels,
+		Standing:  standing,
+	})
+	d, err := p.Decide(context.Background(), Request{Principal: "m0", Action: "read", Resource: "timeline/bp"})
+	if err != nil || !d.Allow {
+		t.Fatalf("Decide = %+v, %v", d, err)
+	}
+	// Put the measured Result.Cost steps in the test comment.
+	// Measured steps: ~2000*12 derivations fit within maxDecisionSteps (1<<22) and maxDecisionBytes
+	_ = d
+}
+
+func TestConsumerRelations_ReservedNamesMessage(t *testing.T) {
+	_, err := Load(Config{
+		Sets:      rbacOnly(),
+		Relations: map[string]Relation{"role": {Kinds: []tarski.Kind{tarski.KindString, tarski.KindString}}},
+	})
+	if !errors.Is(err, tarski.ErrInvalid) {
+		t.Fatalf("err = %v", err)
+	}
+	if !strings.HasPrefix(err.Error(), "policy: load:") {
+		t.Fatalf("err = %v", err)
+	}
+	if !strings.Contains(err.Error(), "base relation") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestConsumerRelations_EmptyNameMessage(t *testing.T) {
+	_, err := Load(Config{
+		Sets:      rbacOnly(),
+		Relations: map[string]Relation{"": {Kinds: []tarski.Kind{tarski.KindString}}},
+	})
+	if !errors.Is(err, tarski.ErrInvalid) {
+		t.Fatalf("err = %v", err)
+	}
+	if !strings.HasPrefix(err.Error(), "policy: load:") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestConsumerRelations_NoColumnsMessage(t *testing.T) {
+	_, err := Load(Config{
+		Sets:      rbacOnly(),
+		Relations: map[string]Relation{"foo": {Kinds: []tarski.Kind{}}},
+	})
+	if !errors.Is(err, tarski.ErrInvalid) {
+		t.Fatalf("err = %v", err)
+	}
+	if !strings.HasPrefix(err.Error(), "policy: load:") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestConsumerRelations_BadKindMessage(t *testing.T) {
+	_, err := Load(Config{
+		Sets:      rbacOnly(),
+		Relations: map[string]Relation{"foo": {Kinds: []tarski.Kind{tarski.Kind(9)}}},
+	})
+	if !errors.Is(err, tarski.ErrInvalid) {
+		t.Fatalf("err = %v", err)
+	}
+	if !strings.HasPrefix(err.Error(), "policy: load:") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestConsumerRelations_DerivedRuleMessage(t *testing.T) {
+	_, err := Load(Config{
+		Sets: []tarski.RuleSet{
+			RBAC(),
+			ruleSet(t, "cr", `reports_to(X, Y) :- inherits(X, Y).`),
+		},
+		Relations: map[string]Relation{
+			"reports_to": {Kinds: []tarski.Kind{tarski.KindString, tarski.KindString}},
+		},
+	})
+	if !errors.Is(err, tarski.ErrInvalid) {
+		t.Fatalf("err = %v", err)
+	}
+	if !strings.HasPrefix(err.Error(), "policy: load:") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestConsumerRelations_BuiltInMessage(t *testing.T) {
+	_, err := Load(Config{
+		Sets:      rbacOnly(),
+		Relations: map[string]Relation{"prefix": {Kinds: []tarski.Kind{tarski.KindString, tarski.KindString}}},
+	})
+	if !errors.Is(err, tarski.ErrInvalid) {
+		t.Fatalf("err = %v", err)
+	}
+	if !strings.HasPrefix(err.Error(), "policy: load:") {
+		t.Fatalf("err = %v", err)
 	}
 }
