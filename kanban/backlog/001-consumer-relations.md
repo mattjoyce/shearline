@@ -186,3 +186,25 @@ open the PR:
 
 Optional: in `TestConsumerRelations_ConsumerCheckMessages`, check the text
 "must be a string, not a number", and add the empty-string message check.
+
+## Review 4 (shearline-lead, 2026-10-28): changes requested (from GPT's review of PR #8)
+
+The recursive tests pass without recursion. `TestConsumerRelations_Recursive` gives `p` the role
+`reader` with `Grant("reader", "read", "doc/")`, and `TestConsumerRelations_BoundsDepth12` gives
+`p0` the role `reader` with `Grant("reader", "read", "review/")`. `rbac.dl` then allows each request
+through `permit/3`, so `allow` holds with the `manages` rules deleted. Fix:
+
+1. In both tests, delete the `Role` and `Grant` facts. The consumer `allow` rule must be the only
+   way the request is allowed.
+2. `TestConsumerRelations_Recursive`: assert the decision proof contains a `manages` step whose
+   proof itself uses the recursive rule (a `manages` with a `manages` in its body). Keep the
+   request `p` reading `doc/1` about `e1`, three levels down.
+3. `TestConsumerRelations_BoundsDepth12`: assert `res.Proof("manages", (p0, p1999))` is found,
+   and the `allow` proof as now. Keep the cost assertions and the measured-numbers comment;
+   re-measure and update the numbers if they change.
+4. Add a deny control to each test: a principal who does not manage the subject gets
+   `Allow == false` from `Decide`. Tree: `p1` asking for `review/p1999` (the ancestors of p1999
+   are p999, p499, p249, p124, p61, p30, p14, p6, p2, p0; p1 is not one). Recursive: `m1`'s
+   peer, or `e1` asking about itself; name the reason in a comment.
+5. Prove the tests now depend on recursion: temporarily delete the second `manages` rule in each
+   test, run them, confirm both FAIL, restore the rule. Say in your final list which tests failed.
