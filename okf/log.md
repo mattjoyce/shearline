@@ -19,3 +19,4 @@
 * **Change**: Shearline requires tarski v0.3.2, hardening only. Citations and pointer notes name that tag; every cited path exists there. The evaluate-options entry says a negative bound is refused. No answer, hash, proof or step change.
 * **Change**: Shearline v0.2.2 tagged, a patch on tarski v0.3.2; the current-release pointers say v0.2.2.
 * **Change**: Consumer relations via `Config.Relations` (standing only); a nil map preserves v0.2.2 behavior. Rule sets may read declared relations with recursive rules; refusals wrap `tarski.ErrInvalid` and start `policy: load:`.
+* **Change**: Shearline v0.3.0 tagged, adding consumer relations; the current-release pointers say v0.3.0.

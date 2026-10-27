@@ -3,10 +3,22 @@
 Shearline is pre-1.0 and the API may change. Each entry says what a consumer of the module can see.
 Rule-set hashes and answer hashes are part of that: a change to either is listed here.
 
-## Unreleased
+## [v0.3.0](https://github.com/mattjoyce/shearline/releases/tag/v0.3.0) - 2026-10-28
 
-- **Consumer relations.** `policy.Config` gains `Relations map[string]Relation` to declare base relations that rule sets may read as standing facts. A nil map preserves v0.2.2 behavior. Declarations are checked for reserved names, kinds, arity and empty strings; a rule set cannot derive a declared base relation.
+[Compare v0.2.2...v0.3.0](https://github.com/mattjoyce/shearline/compare/v0.2.2...v0.3.0)
 
+A feature: a policy may declare its own base relations. Additive; a nil `Relations` gives the
+v0.2.2 answers, proofs and hashes, and `rbac/1` is unchanged. ([PR #8](https://github.com/mattjoyce/shearline/pull/8))
+
+- **Consumer relations.** `policy.Config` gains `Relations map[string]Relation`, one kind per
+  column, for standing facts that rule sets may read, recursively included. `Load` refuses an
+  empty name, any of the eight PARC relation names, a relation with no columns and an unknown
+  kind; a constant of the wrong kind, or an empty string in a string column, is refused in a
+  fact or a rule. tarski refuses a declared name that a rule derives, or that is a built-in.
+- **Bounds.** A recursive consumer relation is derived in full for each decision, and derived
+  bytes bind before steps: a 2,000-person binary tree uses 1% of the step bound and 25% of the
+  byte bound; a 2,000-person single chain exceeds the byte bound. Demand evaluation is the
+  planned fix.
 
 ## [v0.2.2](https://github.com/mattjoyce/shearline/releases/tag/v0.2.2) - 2026-10-26
 

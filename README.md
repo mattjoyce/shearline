@@ -177,7 +177,7 @@ under about 60 lines and files under about 400. CI runs all of it on every push.
 
 ## Changes
 
-The current release is v0.2.2. For a v0.1 user the visible changes are those named under Status
+The current release is v0.3.0, which adds `Config.Relations` for a policy's own base relations. For a v0.1 user the visible changes are those named under Status
 above: the engine is now tarski, its errors start `tarski:`, and large and small numbers print in
 full. Bundled rule-set hashes are unchanged. [CHANGELOG.md](CHANGELOG.md) lists each release.
 
