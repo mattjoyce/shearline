@@ -399,8 +399,9 @@ func TestConsumerRelations_ProofShowsFact(t *testing.T) {
 }
 
 func TestConsumerRelations_MapCopied(t *testing.T) {
+	kinds := []tarski.Kind{tarski.KindString, tarski.KindString}
 	rels := map[string]Relation{
-		"reports_to": {Kinds: []tarski.Kind{tarski.KindString, tarski.KindString}},
+		"reports_to": {Kinds: kinds},
 	}
 	p := mustLoadConfig(t, Config{
 		Sets: []tarski.RuleSet{
@@ -414,8 +415,8 @@ func TestConsumerRelations_MapCopied(t *testing.T) {
 			Role("eve", "reader"),
 		},
 	})
+	kinds[0] = tarski.KindNumber
 	rels["reports_to"] = Relation{Kinds: []tarski.Kind{tarski.KindNumber}}
-	rels["reports_to"].Kinds[0] = tarski.KindNumber
 	delete(rels, "reports_to")
 	if d, err := p.Decide(context.Background(), Request{Principal: "eve", Action: "read", Resource: "timeline/bp"}); err != nil || !d.Allow {
 		t.Fatalf("Decide = %+v, %v", d, err)
@@ -527,7 +528,7 @@ func TestConsumerRelations_BoundsDepth12(t *testing.T) {
 		"about":      {Kinds: []tarski.Kind{tarski.KindString, tarski.KindString}},
 	}
 	var standing []tarski.Fact
-	// 2000-person tree: manager of p<i> is p<(i-1)/2>, depth 12
+	// 2000-person binary tree (depth 10): manager of p<i> is p<(i-1)/2>
 	for i := 1; i < 2000; i++ {
 		standing = append(standing, tarski.Fact{Relation: "reports_to", Tuple: tarski.Tuple{tarski.String(fmt.Sprintf("p%d", i)), tarski.String(fmt.Sprintf("p%d", (i-1)/2))}})
 	}

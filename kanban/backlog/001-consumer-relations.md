@@ -164,3 +164,25 @@ Commit 59925c3. The gates pass. Of the 12 items in Review 1:
 
 The branch is not pushed and has no PR. Work each item in Review 1 by its number, then push
 and open the PR.
+
+## Review 3 (shearline-lead, 2026-10-27): approve after three small fixes
+
+Commit 81cf07c. The gates pass on the pushed commit (race, vet, gosec, gofmt, okf CONFORMANT).
+Items 1-11 are done. The bounds test now measures, and its numbers match mine. Fix these, then
+open the PR:
+
+1. `okf/concepts/consumer-relations.md`, the bounds line says "when queried by demand of the
+   requesting principal". That is false: Shearline does not use demand evaluation, so the whole
+   `manages` closure is derived for each decision. Write: "A recursive consumer relation is
+   derived in full for each decision, so derived bytes bind before steps. A 2,000-person binary
+   tree (depth 10) uses 1% of `maxDecisionSteps` and 25% of `maxDecisionBytes`; a 2,000-person
+   single chain exceeds `maxDecisionBytes`. Demand evaluation is the planned fix."
+2. The bounds test comment says "depth 12". A binary tree of 2,000 has depth 10. Correct the
+   comment (and the test name if you want, `TestConsumerRelations_BoundsTree2000`).
+3. Item 12 is not met. `TestConsumerRelations_MapCopied` assigns a new `Relation` and then
+   changes the new slice, so it never touches the slice that `Load` saw. Keep the original
+   slice in a variable (`kinds := []tarski.Kind{...}`), pass it in `Relations`, and after
+   `Load` set `kinds[1] = tarski.KindNumber`. Decide must still allow.
+
+Optional: in `TestConsumerRelations_ConsumerCheckMessages`, check the text
+"must be a string, not a number", and add the empty-string message check.

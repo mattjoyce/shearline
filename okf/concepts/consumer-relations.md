@@ -18,7 +18,7 @@ timestamp: 2026-10-27T00:00:00Z
 - A rule set cannot derive a declared base relation. A built-in name cannot be declared as a base relation.
 - Declarations are copied into the policy; changing the caller's map after `Load` has no effect.
 - The declaration adds arities and checks to the schema used by `NewBase` and `Compile` (so standing facts and rule atoms are checked).
-- A recursive consumer relation is computed in full for each decision, and derived bytes bind before steps. A 2,000-person tree with depth 12 stays under half of `maxDecisionBytes` and `maxDecisionSteps` when queried by demand of the requesting principal.
+- A recursive consumer relation is derived in full for each decision, so derived bytes bind before steps. A 2,000-person binary tree (depth 10) uses 1% of `maxDecisionSteps` and 25% of `maxDecisionBytes`; a 2,000-person single chain exceeds `maxDecisionBytes`. Demand evaluation is the planned fix.
 
 # Related
 
