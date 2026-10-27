@@ -3,6 +3,17 @@
 Shearline is pre-1.0 and the API may change. Each entry says what a consumer of the module can see.
 Rule-set hashes and answer hashes are part of that: a change to either is listed here.
 
+## Unreleased
+
+Examples and documentation only; the `policy` package, `rbac/1`, answers and hashes are unchanged.
+
+- **`examples/hrchat`.** An HR chatbot's tool gate, moved in from its own repository: 1001
+  synthetic people, 29 tools, `rbac/1` plus a consumer rule set over `Config.Relations`, attested
+  context, a hashed ledger with `Decision.Steps` and `Bytes`, and an aggregate audit over the
+  ledger. It is in the root module, so CI runs its 39 scenarios against this tree.
+- **Covering documents.** `examples/README.md` indexes the three examples. Each example README now
+  says why the example exists, how to run it, and its shape.
+
 ## [v0.4.0](https://github.com/mattjoyce/shearline/releases/tag/v0.4.0) - 2026-10-28
 
 [Compare v0.3.0...v0.4.0](https://github.com/mattjoyce/shearline/compare/v0.3.0...v0.4.0)

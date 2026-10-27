@@ -1,0 +1,23 @@
+% audit/1: queries over the gate's decision ledger. Aggregates belong here, in a query
+% over many requests, and not in the policy, where a decision is one request and
+% Shearline refuses them. The ledger is decision(Seq, P, A, R, Allowed) and
+% cost(Seq, Margin), the decision's larger cost as a whole percent of the policy's bounds;
+% level/2 is the catalogue's.
+
+seen(P) :- decision(_, P, _, _, _).
+used(A) :- decision(_, _, A, _, _).
+
+% refusals(P, N): how many of P's requests were refused. Three or more in one window
+% is a principal, or a model acting for one, probing the policy.
+refusals(P, N) :- seen(P), N = count : { decision(_, P, _, _, false) }.
+probing(P, N)  :- refusals(P, N), N >= 3.
+
+% fanout(P, A, N): P was allowed high action A on N distinct records. A conversation
+% rarely needs three people's salaries; a scrape does.
+touched(P, A, R) :- decision(_, P, A, R, true).
+fanout(P, A, N)  :- seen(P), used(A), level(A, "high"), N = count : { touched(P, A, _) }, N >= 3.
+
+% costly(Seq, P, Margin): a decision that used more than a quarter of a bound. The policy
+% is near the size Shearline will evaluate; past this, Shearline's card 003 (configurable
+% bounds) comes off the shelf, or the rule that grew is narrowed.
+costly(Seq, P, M) :- cost(Seq, M), M > 25, decision(Seq, P, _, _, _).
