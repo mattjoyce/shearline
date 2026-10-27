@@ -59,3 +59,33 @@ be able to watch the margin before a valid request is refused.
 ## Out of scope
 
 - Configurable bounds (card 003). Cost for `Permitted`. An engine version on `Decision`.
+
+## Review 1 (shearline-lead, 2026-10-28): code approved, docs changes requested
+
+`policy.go` and `cost_test.go` are approved: two mutations (drop the cost on the deny path; copy
+the `TooLarge` cost into the Decision) each fail a test. The docs repeat the card's sentences
+verbatim in four places. The card's "in these words" was mine; fix it now. Change only these
+files, and only as follows:
+
+1. `policy/policy.go`, the two constant comments. No kanban card numbers in code. Use exactly:
+   - `maxDecisionBytes`: "maxDecisionBytes bounds what one decision may derive. A policy that goes
+     past it is usually wrong, not large: narrow it first. A correct policy over large consumer
+     data can also go past it; Decision.Bytes shows the margin. Configurable bounds and demand
+     evaluation are the planned remedies."
+   - `maxDecisionSteps`: "maxDecisionSteps bounds the join work of one decision; the deadline alone
+     would let a wide product of duplicates run until it fires. Past it, as for
+     maxDecisionBytes: narrow first; Decision.Steps shows the margin."
+2. `okf/concepts/per-request-evaluation.md`: restore the two table rows to their v0.3.0 text
+   (`git show origin/master:okf/concepts/per-request-evaluation.md`). Replace the sentence "Both are
+   named constants, invariants and not knobs." with "Both are named constants. A correct policy over
+   large consumer data can go past them; see Cost for observation." In "# Cost for observation",
+   delete the last sentence (from "A policy that goes past a bound"), and use no em-dash.
+3. `okf/log.md`: move the Decision-cost line to the end of the list, after the v0.3.0 line, and
+   shorten it to: "* **Change**: `Decision.Steps` and `Decision.Bytes` give the evaluation cost of a
+   successful decision, for observation; zero on error. Answers, proofs and `rbac/1` unchanged."
+4. `CHANGELOG.md` Unreleased entry, replace the bullet with:
+   "- **Decision cost.** `Decision` gains `Steps` and `Bytes`, the evaluation cost from
+   `tarski.Result.Cost()`, on every successful decision, allowed or denied. They are zero when
+   `Decide` returns an error; on a `*TooLarge` the cost is on the error (`errors.As`). They are for
+   observation, in no hash, and may change with any tarski version. Answers, proofs and `rbac/1`
+   are unchanged."
