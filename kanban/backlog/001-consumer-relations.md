@@ -149,3 +149,18 @@ commit, push and open the PR.
     Load and one Decide, or delete it (Recursive and ProofShowsFact cover it).
 12. `TestConsumerRelations_MapCopied` also changes a `Kinds` slice element after Load, not
     only the map entry, because slice aliasing is the real risk.
+
+## Review 2 (shearline-lead, 2026-10-27): changes requested again
+
+Commit 59925c3. The gates pass. Of the 12 items in Review 1:
+
+- Done: 3.
+- Part done: 2 (the duplicate block is gone, but a new `## Unreleased` heading remains; use a
+  `* **Change**:` line in the list), 4 (the `Load` comment still says "over Schema()"),
+  5 (message tests were added for `checkRelations` only; a wrong-kind standing fact, an
+  empty-string rule constant and the `consumerRelationCheck` messages are still missing).
+- Not done: 1, 6, 7, 8, 9, 10, 11, 12. Item 1 is the main one: `TestConsumerRelations_BoundsDepth12`
+  is unchanged and still measures nothing.
+
+The branch is not pushed and has no PR. Work each item in Review 1 by its number, then push
+and open the PR.

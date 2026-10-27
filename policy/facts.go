@@ -19,8 +19,11 @@ func schema(declared map[string]tarski.Kind) tarski.Schema {
 	return schemaWithRelations(declared, nil)
 }
 
+// schemaWithRelations builds a Schema over PARC relations plus declared consumer relations.
+// Each declared relation gets its arity and a check that enforces declared kinds and
+// refuses empty strings in string columns.
 func schemaWithRelations(declared map[string]tarski.Kind, declaredRelations map[string]Relation) tarski.Schema {
-	aritities := map[string]int{
+	arities := map[string]int{
 		"principal": 1, "action": 1, "resource": 1, "context": 2,
 		"role": 2, "inherits": 2, "grants": 3, "denied": 3,
 	}
@@ -29,18 +32,18 @@ func schemaWithRelations(declared map[string]tarski.Kind, declaredRelations map[
 		"context": contextCheck(declared), "role": nonEmptyString, "inherits": nonEmptyString,
 		"grants": nonEmptyString, "denied": nonEmptyString,
 	}
-	if declaredRelations != nil {
-		for name, rel := range declaredRelations {
-			aritities[name] = len(rel.Kinds)
-			checks[name] = consumerRelationCheck(rel)
-		}
+	for name, rel := range declaredRelations {
+		arities[name] = len(rel.Kinds)
+		checks[name] = consumerRelationCheck(rel)
 	}
 	return tarski.Schema{
-		Arities: aritities,
+		Arities: arities,
 		Checks:  checks,
 	}
 }
 
+// consumerRelationCheck returns a Schema check for a declared consumer relation:
+// constants must match the declared kind, and empty strings are refused in string columns.
 func consumerRelationCheck(rel Relation) func(tarski.Atom) error {
 	return func(a tarski.Atom) error {
 		for i, t := range a.Args {
