@@ -52,11 +52,15 @@ type Policy struct { /* plan, frozen standing base, rule-set IDs */ }
 // Config is everything a Policy is built from. Context lists every key a request may
 // carry, with its kind; a request with any other key, or a declared key of another
 // kind, is ErrRequest, and a rule set that names an undeclared key fails at Load.
+// Relations declares consumer base relations (standing only). A nil map declares none.
 type Config struct {
-    Standing []tarski.Fact
-    Sets     []tarski.RuleSet
-    Context  map[string]tarski.Kind
+    Standing  []tarski.Fact
+    Sets      []tarski.RuleSet
+    Context   map[string]tarski.Kind
+    Relations map[string]Relation
 }
+// Relation is one consumer base relation: one kind for each column, in order.
+type Relation struct{ Kinds []tarski.Kind }
 func Load(cfg Config) (Policy, error)
 
 // Decide is total: nil error with Allow=false is deny by absence; a non-nil error is

@@ -10,3 +10,4 @@
 * [Stratified negation](stratified-negation.md) - What the engine's Datalog is and is not: no function symbols, built-ins as guards, stratified negation, and a hook mechanism for declared-but-undefined relations.
 * [Value and builder](value-and-builder.md) - A relation is a builder while evaluation runs and a sealed value afterwards, never both; Base and Result hold values only, so reads are safe by construction.
 * [Why-not provenance](why-not-provenance.md) - How a refusal explains itself: the farthest literal each candidate rule reached, a Truncated flag for the bounded walk, and Blocked for a negation that held.
+* [Consumer relations](consumer-relations.md) - A policy may declare base relations in Config.Relations for rule sets to read as standing facts.

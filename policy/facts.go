@@ -16,16 +16,52 @@ func Schema() tarski.Schema { return schema(nil) }
 // schema is Schema with the context keys a policy declares: context/2 is held to them, so
 // a rule or a request naming any other key, or a declared key at another kind, is refused.
 func schema(declared map[string]tarski.Kind) tarski.Schema {
+	return schemaWithRelations(declared, nil)
+}
+
+// schemaWithRelations builds a Schema over PARC relations plus declared consumer relations.
+// Each declared relation gets its arity and a check that enforces declared kinds and
+// refuses empty strings in string columns.
+func schemaWithRelations(declared map[string]tarski.Kind, declaredRelations map[string]Relation) tarski.Schema {
+	arities := map[string]int{
+		"principal": 1, "action": 1, "resource": 1, "context": 2,
+		"role": 2, "inherits": 2, "grants": 3, "denied": 3,
+	}
+	checks := map[string]func(tarski.Atom) error{
+		"principal": nonEmptyString, "action": nonEmptyString, "resource": nonEmptyString,
+		"context": contextCheck(declared), "role": nonEmptyString, "inherits": nonEmptyString,
+		"grants": nonEmptyString, "denied": nonEmptyString,
+	}
+	for name, rel := range declaredRelations {
+		arities[name] = len(rel.Kinds)
+		checks[name] = consumerRelationCheck(rel)
+	}
 	return tarski.Schema{
-		Arities: map[string]int{
-			"principal": 1, "action": 1, "resource": 1, "context": 2,
-			"role": 2, "inherits": 2, "grants": 3, "denied": 3,
-		},
-		Checks: map[string]func(tarski.Atom) error{
-			"principal": nonEmptyString, "action": nonEmptyString, "resource": nonEmptyString,
-			"context": contextCheck(declared), "role": nonEmptyString, "inherits": nonEmptyString,
-			"grants": nonEmptyString, "denied": nonEmptyString,
-		},
+		Arities: arities,
+		Checks:  checks,
+	}
+}
+
+// consumerRelationCheck returns a Schema check for a declared consumer relation:
+// constants must match the declared kind, and empty strings are refused in string columns.
+func consumerRelationCheck(rel Relation) func(tarski.Atom) error {
+	return func(a tarski.Atom) error {
+		for i, t := range a.Args {
+			if i >= len(rel.Kinds) {
+				break
+			}
+			want := rel.Kinds[i]
+			if t.IsVar() {
+				continue
+			}
+			if t.Const.Kind() != want {
+				return fmt.Errorf("%s argument %d must be a %s, not a %s", a.Name, i+1, kindName(want), kindName(t.Const.Kind()))
+			}
+			if want == tarski.KindString && t.Const.Text() == "" {
+				return fmt.Errorf("%s argument %d is an empty string; that is a missing value, not a wildcard", a.Name, i+1)
+			}
+		}
+		return nil
 	}
 }
 

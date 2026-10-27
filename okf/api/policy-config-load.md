@@ -11,10 +11,12 @@ timestamp: 2026-10-22T00:00:00Z
 
 ```go
 type Config struct {
-    Standing []tarski.Fact
-    Sets     []tarski.RuleSet
-    Context  map[string]tarski.Kind
+    Standing  []tarski.Fact
+    Sets      []tarski.RuleSet
+    Context   map[string]tarski.Kind
+    Relations map[string]Relation
 }
+type Relation struct{ Kinds []tarski.Kind }
 func Load(cfg Config) (Policy, error)
 ```
 
@@ -52,7 +54,7 @@ p, err := policy.Load(policy.Config{
 
 # Related
 
-[policy.Decide](/api/policy-decide.md), [policy.Permitted](/api/policy-permitted.md), [fact constructors](/api/policy-fact-constructors.md), [package policy](/packages/policy.md).
+[policy.Decide](/api/policy-decide.md), [policy.Permitted](/api/policy-permitted.md), [fact constructors](/api/policy-fact-constructors.md), [package policy](/packages/policy.md), [consumer relations](/concepts/consumer-relations.md).
 
 # Citations
 

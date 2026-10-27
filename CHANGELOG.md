@@ -3,6 +3,11 @@
 Shearline is pre-1.0 and the API may change. Each entry says what a consumer of the module can see.
 Rule-set hashes and answer hashes are part of that: a change to either is listed here.
 
+## Unreleased
+
+- **Consumer relations.** `policy.Config` gains `Relations map[string]Relation` to declare base relations that rule sets may read as standing facts. A nil map preserves v0.2.2 behavior. Declarations are checked for reserved names, kinds, arity and empty strings; a rule set cannot derive a declared base relation.
+
+
 ## [v0.2.2](https://github.com/mattjoyce/shearline/releases/tag/v0.2.2) - 2026-10-26
 
 [Compare v0.2.1...v0.2.2](https://github.com/mattjoyce/shearline/compare/v0.2.1...v0.2.2)
