@@ -3,6 +3,16 @@
 Shearline is pre-1.0 and the API may change. Each entry says what a consumer of the module can see.
 Rule-set hashes and answer hashes are part of that: a change to either is listed here.
 
+## Unreleased
+
+- **Decision cost.** `Decision` gains `Steps` and `Bytes` (from `tarski.Result.Cost()`) on
+  successful allow or deny; they are zero on error paths, and on a `*TooLarge` the cost stays on
+  the error (`errors.As` to `*tarski.TooLarge`). `maxDecisionBytes` and `maxDecisionSteps`
+  comments say a policy past a bound is usually wrong, not large, so narrow it first; a correct
+  policy over large consumer data can also go past the current budget; `Decision.Steps` and
+  `Decision.Bytes` show the margin; card 003 and demand evaluation are planned remedies.
+  Answers, proofs, `rbac/1` and hashes are unchanged.
+
 ## [v0.3.0](https://github.com/mattjoyce/shearline/releases/tag/v0.3.0) - 2026-10-28
 
 [Compare v0.2.2...v0.3.0](https://github.com/mattjoyce/shearline/compare/v0.2.2...v0.3.0)

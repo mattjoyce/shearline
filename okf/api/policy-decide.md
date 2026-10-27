@@ -19,6 +19,8 @@ type Decision struct {
     Proof    tarski.Proof   // why allowed; zero when denied
     Why      tarski.Absence // why denied; zero when allowed or on error
     RuleSets []string        // the loaded sets' IDs in load order
+    Steps    int            // evaluation steps (Result.Cost); zero when err != nil
+    Bytes    int            // derived bytes, approximate (Result.Cost); zero when err != nil
 }
 func (p Policy) Decide(ctx context.Context, req Request) (Decision, error)
 ```
