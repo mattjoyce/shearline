@@ -21,6 +21,16 @@ const maxDecisionBytes = 1 << 20
 // first; Decision.Steps shows the margin.
 const maxDecisionSteps = 1 << 22
 
+// Bounds are the limits one decision is evaluated under. Decide and Permitted use the
+// same bounds. Read-only: a policy cannot change them.
+type Bounds struct{ MaxSteps, MaxBytes int }
+
+// Bounds returns the bounds this policy's decisions are evaluated under, for computing
+// the margin from Decision.Steps and Decision.Bytes.
+func (p Policy) Bounds() Bounds {
+	return Bounds{MaxSteps: maxDecisionSteps, MaxBytes: maxDecisionBytes}
+}
+
 //go:embed rbac.dl
 var rbacText string
 

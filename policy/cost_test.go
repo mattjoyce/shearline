@@ -189,3 +189,60 @@ func TestDecide_CostDeterministic(t *testing.T) {
 			first.Steps, first.Bytes, second.Steps, second.Bytes)
 	}
 }
+
+// TestDecide_CostForwardsResultCost: Decision.Steps and Decision.Bytes are the engine's
+// Result.Cost(), each in its own field. The expected pair comes from a direct Evaluate over
+// the same base Decide builds. Steps and bytes are asserted to differ, so a swap of the two
+// fields cannot pass by coincidence.
+func TestDecide_CostForwardsResultCost(t *testing.T) {
+	p := mustLoad(t, fixture(), RBAC())
+	for _, tc := range []struct {
+		name string
+		req  Request
+		want bool
+	}{
+		{"allow", Request{Principal: "ana", Action: "read", Resource: "timeline/bp"}, true},
+		{"deny", Request{Principal: "bo", Action: "write", Resource: "timeline/bp"}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			base, err := p.base.With(tc.req.facts()...)
+			if err != nil {
+				t.Fatalf("base: %v", err)
+			}
+			res, err := tarski.Evaluate(context.Background(), p.plan, base, tarski.Options{
+				MaxBytes: maxDecisionBytes, MaxSteps: maxDecisionSteps, Proofs: true,
+			})
+			if err != nil {
+				t.Fatalf("Evaluate: %v", err)
+			}
+			steps, bytes := res.Cost()
+			if steps == bytes {
+				t.Fatalf("fixture gives steps == bytes (%d); a swap would pass, pick another", steps)
+			}
+			d, err := p.Decide(context.Background(), tc.req)
+			if err != nil {
+				t.Fatalf("Decide: %v", err)
+			}
+			if d.Allow != tc.want {
+				t.Fatalf("Allow = %v, want %v", d.Allow, tc.want)
+			}
+			if d.Steps != steps {
+				t.Errorf("Steps = %d, want %d (Result.Cost steps)", d.Steps, steps)
+			}
+			if d.Bytes != bytes {
+				t.Errorf("Bytes = %d, want %d (Result.Cost bytes)", d.Bytes, bytes)
+			}
+		})
+	}
+}
+
+// TestPolicy_Bounds: Bounds reports the limits Decide and Permitted evaluate under.
+func TestPolicy_Bounds(t *testing.T) {
+	b := mustLoad(t, fixture(), RBAC()).Bounds()
+	if b.MaxSteps != maxDecisionSteps {
+		t.Errorf("MaxSteps = %d, want %d", b.MaxSteps, maxDecisionSteps)
+	}
+	if b.MaxBytes != maxDecisionBytes {
+		t.Errorf("MaxBytes = %d, want %d", b.MaxBytes, maxDecisionBytes)
+	}
+}

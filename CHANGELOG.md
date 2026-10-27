@@ -10,6 +10,9 @@ Rule-set hashes and answer hashes are part of that: a change to either is listed
   `Decide` returns an error; on a `*TooLarge` the cost is on the error (`errors.As`). They are for
   observation, in no hash, and may change with any tarski version. Answers, proofs and `rbac/1`
   are unchanged.
+- **Bounds.** `Policy.Bounds()` returns the
+  `MaxSteps` and `MaxBytes` a decision is evaluated under, read-only, so a consumer can compute
+  the margin from `Decision.Steps` and `Decision.Bytes`.
 
 ## [v0.3.0](https://github.com/mattjoyce/shearline/releases/tag/v0.3.0) - 2026-10-28
 

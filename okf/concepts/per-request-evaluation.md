@@ -38,7 +38,7 @@ The review's note on the trade: the unseeded `holds/2` is the truer relation, bu
 
 # Cost for observation
 
-`Decision.Steps` and `Decision.Bytes` expose the engine's evaluation work for observation (logs, ledgers, alerts on the margin to the bounds). They are set only on a successful return (allow or deny); on error paths and on `*TooLarge` they remain zero and the cost stays reachable via `errors.As(err, &tl)`. Do not decide on them: they can change with any tarski version, with no change to the answer. They are not latency or memory; `Bytes` approximates the encoded size of derived tuples. They are in no hash, and a changelog does not list a cost change as an answer change.
+`Decision.Steps` and `Decision.Bytes` expose the engine's evaluation work for observation (logs, ledgers, alerts on the margin to the bounds). They are set only on a successful return (allow or deny); on error paths and on `*TooLarge` they remain zero and the cost stays reachable via `errors.As(err, &tl)`. Do not decide on them: they can change with any tarski version, with no change to the answer. They are not latency or memory; `Bytes` approximates the encoded size of derived tuples. They are in no hash, and a changelog does not list a cost change as an answer change. The margin is the cost over `Policy.Bounds()`.
 
 # Consequences for consumer rule sets
 
