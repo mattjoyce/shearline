@@ -347,13 +347,51 @@ func TestConsumerRelations_Recursive(t *testing.T) {
 			{Relation: "reports_to", Tuple: tarski.Tuple{tarski.String("e1"), tarski.String("x")}},
 			{Relation: "reports_to", Tuple: tarski.Tuple{tarski.String("x"), tarski.String("m1")}},
 			{Relation: "reports_to", Tuple: tarski.Tuple{tarski.String("m1"), tarski.String("p")}},
-			Grant("reader", "read", "doc/"),
-			Role("p", "reader"),
 		},
 	})
 	d, err := p.Decide(context.Background(), Request{Principal: "p", Action: "read", Resource: "doc/1"})
 	if err != nil || !d.Allow {
 		t.Fatalf("Decide = %+v, %v", d, err)
+	}
+	// assert the decision proof contains a manages step whose proof itself uses the recursive rule
+	// (a manages with a manages in its body)
+	foundRecursive := false
+	var walk func(pr tarski.Proof)
+	walk = func(pr tarski.Proof) {
+		if pr.Relation == "manages" {
+			for _, b := range pr.Body {
+				if b.Relation == "manages" {
+					foundRecursive = true
+				}
+				walk(b)
+			}
+			for _, g := range pr.Group {
+				for _, w := range g {
+					walk(w)
+				}
+			}
+		} else {
+			for _, b := range pr.Body {
+				walk(b)
+			}
+			for _, g := range pr.Group {
+				for _, w := range g {
+					walk(w)
+				}
+			}
+		}
+	}
+	walk(d.Proof)
+	if !foundRecursive {
+		t.Fatalf("proof did not show recursive manages step")
+	}
+	// deny control: m1's peer (or e1 asking about itself) - m1 manages x,e1; e1 does not manage anyone above in this chain
+	d2, err := p.Decide(context.Background(), Request{Principal: "e1", Action: "read", Resource: "doc/1"})
+	if err != nil {
+		t.Fatalf("Decide = %+v, %v", d2, err)
+	}
+	if d2.Allow {
+		t.Fatalf("e1 should not be allowed (e1 asking about itself is not managed by e1 in this chain)")
 	}
 }
 
@@ -533,8 +571,6 @@ func TestConsumerRelations_BoundsDepth12(t *testing.T) {
 		standing = append(standing, tarski.Fact{Relation: "reports_to", Tuple: tarski.Tuple{tarski.String(fmt.Sprintf("p%d", i)), tarski.String(fmt.Sprintf("p%d", (i-1)/2))}})
 	}
 	standing = append(standing, tarski.Fact{Relation: "about", Tuple: tarski.Tuple{tarski.String("review/p1999"), tarski.String("p1999")}})
-	standing = append(standing, Grant("reader", "read", "review/"))
-	standing = append(standing, Role("p0", "reader"))
 
 	s, err := tarski.NewRuleSet("cr", 1, `
 		manages(M, E) :- reports_to(E, M).
@@ -579,6 +615,17 @@ func TestConsumerRelations_BoundsDepth12(t *testing.T) {
 	want := tarski.Tuple{tarski.String("p0"), tarski.String("read"), tarski.String("review/p1999")}
 	if _, ok := res.Proof("allow", want); !ok {
 		t.Fatalf("not allowed")
+	}
+	if _, ok := res.Proof("manages", tarski.Tuple{tarski.String("p0"), tarski.String("p1999")}); !ok {
+		t.Fatalf("manages proof not found")
+	}
+	// deny control: p1 is not an ancestor of p1999 (ancestors include p0,p2,p6,...,p999)
+	d2, err := p.Decide(context.Background(), Request{Principal: "p1", Action: "read", Resource: "review/p1999"})
+	if err != nil {
+		t.Fatalf("Decide = %+v, %v", d2, err)
+	}
+	if d2.Allow {
+		t.Fatalf("p1 should not be allowed (not in management chain of p1999)")
 	}
 }
 
