@@ -1,7 +1,7 @@
 # 004 Compare two policies over a set of requests
 
 Asked for by: Matt, after a comparison with Cedar (2026-11-02).
-Owner: shearline-lead. Status: BACKLOG. Release: additive (new function and types).
+Owner: shearline-lead. Status: BUILT on feat/004-compare-policies. Release: additive (new function and types).
 Written in ASD-STE100.
 
 ## Job story
@@ -83,9 +83,23 @@ func Compare(ctx context.Context, a, b Policy, reqs iter.Seq[Request]) ([]Diff, 
 - Comparing proofs. Two policies that allow the same request for different reasons are equal
   here.
 
-## Open questions
+## Result
+
+1. Built as specified: `policy/compare.go`, tests in `policy/compare_test.go` (acceptance 1 to 5).
+2. Mutation check: two mutants of the diff condition (ignore `Allow`; ignore an error on one side
+   only) each fail a test. The second needed a new case with the error on side a.
+3. hrchat (acceptance 6): `examples/hrchat/hrpolicy/compare_test.go`. Over 189 requests, the mutant
+   gives 38 diffs: two for each of 19 approvable pay changes. Some partner and subject pairs are
+   denied for another reason (the subject is above the partner), so they are no diff. Each diff's
+   why-not, reduced by `Explain`, names `four_eyes`.
+4. `examples/hrchat/go.mod` replaces shearline with `../..`, so the example builds against this
+   tree. Remove the replace after the release, or keep it, as for an in-repo example.
+
+## Open questions (answered for this build)
 
 1. Is two errors equal correct? A `*TooLarge` on one side and an `ErrRequest` on the other side
-   are both errors, but they mean different things. Possible answer: compare the error class.
+   are both errors, but they mean different things. This build: two errors are equal, as the card
+   says. Revisit when a consumer needs the class.
 2. Memory: hrchat has 1001 principals times its tools times its context combinations. Return a
-   slice, or give `iter.Seq[Diff]` so a consumer can stop at the first diff?
+   slice, or give `iter.Seq[Diff]` so a consumer can stop at the first diff? This build: a slice.
+   A consumer can stop early with ctx.

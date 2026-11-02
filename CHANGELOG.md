@@ -5,12 +5,18 @@ Rule-set hashes and answer hashes are part of that: a change to either is listed
 
 ## Unreleased
 
-Examples and documentation only; the `policy` package, `rbac/1`, answers and hashes are unchanged.
+A feature: compare two policies over a set of requests. Additive; answers, proofs and `rbac/1`
+are unchanged. (Card 009.)
 
+- **Compare.** `Compare(ctx, a, b, reqs)` decides each request on both policies and returns a
+  `Diff` for each one where `Allow` differs or only one side errors, in request order, with both
+  decisions and so both proofs or why-nots. It checks only the requests given, over the facts each
+  policy holds: no diff is evidence for those requests, not a proof of equivalence.
 - **`examples/hrchat`.** An HR chatbot's tool gate, moved in from its own repository: 1001
   synthetic people, 29 tools, `rbac/1` plus a consumer rule set over `Config.Relations`, attested
   context, a hashed ledger with `Decision.Steps` and `Bytes`, and an aggregate audit over the
-  ledger. It is in the root module, so CI runs its 39 scenarios against this tree.
+  ledger. It is in the root module, so CI runs its 39 scenarios against this tree. A test compares
+  its policy with a mutant missing the four-eyes attestation.
 - **Covering documents.** `examples/README.md` indexes the three examples. Each example README now
   says why the example exists, how to run it, and its shape.
 

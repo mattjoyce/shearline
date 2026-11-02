@@ -136,6 +136,10 @@ allow("ana", "read", "timeline/secret") is not derived
   from the same rules that gate requests. It does not apply `deny`, which is per concrete resource,
   and it carries no context, so it is discovery, not a gate: `Decide` every resource you then act on.
   To list who may do something, loop over your principals and call `Decide`.
+- **Compare two policies.** `Compare(ctx, a, b, reqs)` lists each request where two policies
+  decide differently, with both decisions' proofs or why-nots: review that a change only removes
+  access, or find where two authors' rule sets disagree. It covers the requests you give, not
+  every possible request.
 - **Render a receipt.** `Proof` and `Why` print as indented text and marshal to compact JSON.
 - **See it embedded.** Three worked examples, indexed in `examples/README.md`.
   `examples/logsvc` is the smallest: a log service whose roles and tokens live in two YAML
