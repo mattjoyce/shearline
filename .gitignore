@@ -1,6 +1,7 @@
 # Built binaries
 /examples/logsvc/logsvc
 /examples/ductile/ductile
+/examples/hrchat/hrchat
 *.exe
 *.test
 *.out
