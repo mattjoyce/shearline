@@ -47,12 +47,14 @@ Enumerate by role instead:
 - Resources: for each principal, self, manager, manager's manager, one direct report, one
   report's report, one peer, one person in another division, one HR partner, one payroll
   officer. About 10 each.
-- Actions: all 30 in the catalogue.
+- Actions: all 27 in the catalogue.
 - Contexts: a grid over channel (2), guardrail (2), mfa (2), confirmed (2), requester (none,
   self, subject). 48.
 
-About 30 × 10 × 30 × 48 = 432,000 requests per property. At hrchat's cost (about 1 ms a
-decision), that is about 7 minutes per property per policy. Too slow for every `go test`.
+About 30 × 10 × 27 × 48 = 388,800 requests per property. Measured 2026-11-04: 600 decisions
+over seed 1 at about 145 µs each (M-series Mac, no race detector), so about one minute per
+property per policy, and twice that for a Compare. Ten properties is about 20 minutes. Too
+slow for every `go test`; fine for a nightly.
 
 So: a `go test` tag `properties` runs the full space; the default run takes a fixed sample of
 2,000 requests (seeded, the same every run). CI runs the sample. A nightly or a release runs
