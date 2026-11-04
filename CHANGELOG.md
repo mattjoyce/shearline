@@ -5,17 +5,27 @@ Rule-set hashes and answer hashes are part of that: a change to either is listed
 
 ## Unreleased
 
-A feature: compare two policies over a set of requests. Additive; answers, proofs and `rbac/1`
-are unchanged. (Card 009.)
+Two features: compare two policies over a set of requests, and declare your own builtins.
+Additive; answers, proofs and `rbac/1` are unchanged. (Cards 009 and 005.)
 
 - **Compare.** `Compare(ctx, a, b, reqs)` decides each request on both policies and returns a
   `Diff` for each one where `Allow` differs or only one side errors, in request order, with both
   decisions and so both proofs or why-nots. It checks only the requests given, over the facts each
   policy holds: no diff is evidence for those requests, not a proof of equivalence.
+<<<<<<< HEAD
 - **`examples/hrchat`.** An HR chatbot's tool gate, moved in from its own repository: 1001
   synthetic people, 29 tools, `rbac/1` plus a consumer rule set over `Config.Relations`, attested
   context, a hashed ledger with `Decision.Steps` and `Bytes`, and an aggregate audit over the
   ledger. It is in the root module, so CI runs its 39 scenarios against this tree. A test compares
+=======
+- **Builtins.** `Config.Builtins` passes `tarski.Builtin` guards through to the engine, so a
+  rule can read a Go function: `in_net(IP, "10.0.0.0/8")`. Load refuses a builtin named like
+  an engine builtin, a PARC or declared relation, or a rule head, and one with no `Args` or
+  `Holds`; a builtin's `Check` refuses a bad constant in a rule, with the line. New package
+  `policy/builtins` has `InCIDR`, `Before` and `Within`. A builtin is not in any hash: the
+  rule-set IDs cover the rule text, not the function.
+- **Examples.** `examples/hrchat` is new: a thought experiment at scale, with a test that compares
+>>>>>>> 3835f61 (feat/005: Config.Builtins and policy/builtins (InCIDR, Before, Within))
   its policy with a mutant missing the four-eyes attestation.
 - **Covering documents.** `examples/README.md` indexes the three examples. Each example README now
   says why the example exists, how to run it, and its shape.

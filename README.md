@@ -132,6 +132,10 @@ allow("ana", "read", "timeline/secret") is not derived
   your own using `prefix/2`.
 - **Extend with your own rules.** Add a rule set after `RBAC()` in `Config.Sets` to define
   denials, add roles, or read context. Rule sets are policy, never user input.
+- **Guard with Go when facts cannot.** `Config.Builtins` names Go functions that rules read as
+  guards: `in_net(IP, "10.0.0.0/8")`. Package `policy/builtins` has `InCIDR`, `Before` and
+  `Within`. A refusal's why-not names the guard and the values it got. A builtin is code: the
+  rule-set hash covers the rule that names it, not the function.
 - **List what a principal holds.** `Permitted(ctx, principal, action)` returns the grant prefixes
   from the same rules that gate requests. It does not apply `deny`, which is per concrete resource,
   and it carries no context, so it is discovery, not a gate: `Decide` every resource you then act on.

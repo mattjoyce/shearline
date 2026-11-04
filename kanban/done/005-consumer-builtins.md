@@ -3,7 +3,7 @@
 Asked for by: Matt, from the Cedar comparison (2026-11-04). Cedar has extension types for IP
 ranges, decimals, dates and durations. tarski already has the mechanism (`Schema.Builtins`);
 Shearline does not pass it through.
-Owner: shearline-lead. Status: BACKLOG. Release: additive (one Config field).
+Owner: shearline-lead. Status: DONE (2026-11-04). Release: additive (one Config field).
 Written in ASD-STE100.
 
 ## Job story
@@ -71,3 +71,23 @@ pair, or does the check outside Shearline, where the proof cannot see it.
    `RuleSets` IDs and different answers. Options: leave it and document it; or add the
    builtin names (not the functions) to the Decision. I lean to document it: the function is
    code, reviewed like code.
+
+## Result (2026-11-04)
+
+Built on branch `feat/005-consumer-builtins`.
+
+- `Config.Builtins` goes into the Schema as a copy (`policy/policy.go`, `Load`). tarski already
+  refuses every bad declaration: engine names, base relation names (PARC and declared), a
+  builtin as a rule head, no `Args`, no `Holds`. So Shearline adds no check of its own. The
+  test pins each refusal (`policy/config_builtins_test.go`).
+- `policy/builtins` has `InCIDR`, `Before` and `Within`, each with a `Check`, table tests over
+  good, wrong-kind and malformed values, 100% coverage.
+- `DecimalLess` is dropped. tarski numbers are exact decimals already (`number.go`) and rules
+  compare them with `<`, `<=`, `>`, `>=`.
+- Two corrections to this card. The proof does not show a builtin as a leaf: a guard is not a
+  fact, so the proof shows it only in the rule text. The why-not does name it, with the bound
+  values: `stopped at in_net(IP, "10.0.0.0/8")  with ... IP="192.168.0.1"`. And `Within` holds
+  only when B is at or after A; "B minus A is at most Max" alone would hold for any B before A.
+- Open question 1: documented, as the card leaned. The `Config` doc and the README say a
+  builtin is code and is in no hash.
+- Mutation: `InCIDR.Holds` that ignores the network fails the policy test and the table test.
