@@ -1,6 +1,6 @@
 # 001 Let a policy declare its own base relations
 
-Asked for by: hrchat (`hrchat/kanban/backlog/002-shearline-consumer-relations.md`).
+Asked for by: hrchat (`examples/hrchat/kanban/done/002-shearline-consumer-relations.md`).
 Owner: shearline-lead. Built by: opencode, on a branch. Review: shearline-lead, before merge.
 Release: v0.3.0 (a new field, additive). Written in ASD-STE100.
 

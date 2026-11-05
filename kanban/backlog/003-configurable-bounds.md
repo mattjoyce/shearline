@@ -1,6 +1,6 @@
 # 003 Let a policy set its decision bounds
 
-Asked for by: hrchat (`hrchat/kanban/backlog/006-shearline-decision-cost.md`, part 2).
+Asked for by: hrchat (`examples/hrchat/kanban/backlog/006-shearline-decision-cost.md`, part 2).
 Owner: shearline-lead. Status: PARKED. Written in ASD-STE100.
 
 ## Trigger

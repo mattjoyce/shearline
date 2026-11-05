@@ -1,6 +1,6 @@
 # 002 Show what a decision cost
 
-Asked for by: hrchat (`hrchat/kanban/backlog/006-shearline-decision-cost.md`, part 1).
+Asked for by: hrchat (`examples/hrchat/kanban/backlog/006-shearline-decision-cost.md`, part 1).
 Owner: shearline-lead. Built by: opencode via _POINTDEV. Release: v0.4.0 (new fields, additive).
 Part 2 of the request (configurable bounds) is card 003, parked. Written in ASD-STE100.
 

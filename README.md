@@ -132,10 +132,18 @@ allow("ana", "read", "timeline/secret") is not derived
   your own using `prefix/2`.
 - **Extend with your own rules.** Add a rule set after `RBAC()` in `Config.Sets` to define
   denials, add roles, or read context. Rule sets are policy, never user input.
+- **Guard with Go when facts cannot.** `Config.Builtins` names Go functions that rules read as
+  guards: `in_net(IP, "10.0.0.0/8")`. Package `policy/builtins` has `InCIDR`, `Before` and
+  `Within`. A refusal's why-not names the guard and the values it got. A builtin is code: the
+  rule-set hash covers the rule that names it, not the function.
 - **List what a principal holds.** `Permitted(ctx, principal, action)` returns the grant prefixes
   from the same rules that gate requests. It does not apply `deny`, which is per concrete resource,
   and it carries no context, so it is discovery, not a gate: `Decide` every resource you then act on.
   To list who may do something, loop over your principals and call `Decide`.
+- **Compare two policies.** `Compare(ctx, a, b, reqs)` lists each request where two policies
+  decide differently, with both decisions' proofs or why-nots: review that a change only removes
+  access, or find where two authors' rule sets disagree. It covers the requests you give, not
+  every possible request.
 - **Render a receipt.** `Proof` and `Why` print as indented text and marshal to compact JSON.
 - **See it embedded.** Three worked examples, indexed in `examples/README.md`.
   `examples/logsvc` is the smallest: a log service whose roles and tokens live in two YAML
@@ -181,7 +189,7 @@ under about 60 lines and files under about 400. CI runs all of it on every push.
 
 ## Changes
 
-The current release is v0.4.0: v0.3.0 added `Config.Relations` for a policy's own base relations, and v0.4.0 adds `Decision.Steps`, `Decision.Bytes` and `Policy.Bounds()` for watching a decision's cost. For a v0.1 user the visible changes are those named under Status
+The current release is v0.5.0: v0.3.0 added `Config.Relations` for a policy's own base relations, v0.4.0 added `Decision.Steps`, `Decision.Bytes` and `Policy.Bounds()` for watching a decision's cost, and v0.5.0 adds `Compare` and `Config.Builtins` with package `policy/builtins`. For a v0.1 user the visible changes are those named under Status
 above: the engine is now tarski, its errors start `tarski:`, and large and small numbers print in
 full. Bundled rule-set hashes are unchanged. [CHANGELOG.md](CHANGELOG.md) lists each release.
 

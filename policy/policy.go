@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"maps"
 	"sort"
 
 	"github.com/mattjoyce/tarski"
@@ -115,11 +116,29 @@ type Decision struct {
 //
 // Relations declares consumer base relations that rule sets may read as standing facts.
 // A nil map declares none and preserves v0.2.2 behaviour.
+//
+// Builtins declares relations answered in Go, not by facts: guards such as "this address
+// is in this network", which package builtins supplies for addresses and times. A rule
+// reads one like any relation, in_net(IP, "10.0.0.0/8"), but a builtin binds nothing, so
+// a positive atom in the same body must bind each argument first. A guard is not a fact,
+// so a proof lists the facts the rule matched and shows the builtin only in the rule's
+// text; when a builtin stops a rule, the why-not names it as the literal that failed, with
+// the values it was given. tarski.Builtin states the contract: Holds is pure, total, deterministic and safe
+// for concurrent use. Load refuses a builtin with no Args or no Holds, one named like an
+// engine builtin (prefix, suffix, contains), a PARC relation or a declared relation, and
+// one that is the head of a rule. A nil map declares none.
+//
+// A builtin is code, not policy text: the rule-set hashes in Decision.RuleSets cover the
+// rules that name it, not the Go function. Two programs with the same rule sets and a
+// different function behind one name share the IDs and can decide differently, so review a
+// builtin as you review the code that calls Decide. Permitted reads no context, so a builtin
+// over a context value never holds there.
 type Config struct {
 	Standing  []tarski.Fact
 	Sets      []tarski.RuleSet
 	Context   map[string]tarski.Kind
 	Relations map[string]Relation
+	Builtins  map[string]tarski.Builtin
 }
 
 // Relation is one consumer base relation: one kind for each column, in order.
@@ -168,6 +187,7 @@ func Load(cfg Config) (Policy, error) {
 		ids[i] = s.ID()
 	}
 	schema := schemaWithRelations(declared, declaredRelations)
+	schema.Builtins = maps.Clone(cfg.Builtins) // tarski checks the names and copies each at Compile
 	plan, err := tarski.Compile(schema, programs...)
 	if err != nil {
 		return Policy{}, fmt.Errorf("policy: load: %w", err)
