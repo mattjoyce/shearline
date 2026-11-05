@@ -101,7 +101,9 @@ var Within = tarski.Builtin{
 		if !okA || !okB || !okD || b.Before(a) {
 			return false
 		}
-		return b.Sub(a) <= limit
+		// a + limit, not b - a: Sub saturates at the largest Duration, so a span longer
+		// than that would compare equal to a Max of exactly that.
+		return !b.After(a.Add(limit))
 	},
 }
 
@@ -146,8 +148,20 @@ func instant(c tarski.Const) (time.Time, bool) {
 	if c.Kind() != tarski.KindString {
 		return time.Time{}, false
 	}
-	t, err := time.Parse(time.RFC3339, c.Text())
-	return t, err == nil
+	text := c.Text()
+	t, err := time.Parse(time.RFC3339, text)
+	return t, err == nil && offsetInRange(text)
+}
+
+// offsetInRange holds RFC 3339's offset to hours 00 to 23 and minutes 00 to 59. time.Parse
+// accepts any two digits there ("+24:00", "+00:75"), which would move the instant by a day
+// or more. The text has parsed, so it ends in Z or z, or in a sign and HH:MM.
+func offsetInRange(text string) bool {
+	if last := text[len(text)-1]; last == 'Z' || last == 'z' {
+		return true
+	}
+	off := text[len(text)-5:]
+	return off[:2] <= "23" && off[3:] <= "59"
 }
 
 func duration(c tarski.Const) (time.Duration, bool) {

@@ -91,3 +91,17 @@ Built on branch `feat/005-consumer-builtins`.
 - Open question 1: documented, as the card leaned. The `Config` doc and the README say a
   builtin is code and is in no hash.
 - Mutation: `InCIDR.Holds` that ignores the network fails the policy test and the table test.
+
+## Review (2026-11-05)
+
+Cross-vendor audit by Sol (GPT-6.1) of cards 004 and 005. Four findings, each reproduced, fixed
+and pinned by a test that fails on the old code:
+
+1. `Before`/`Within` accepted an offset hour of 24 (`time.Parse` allows `+24:00`), so a
+   malformed time could hold. Now refused in `Holds` and at Load.
+2. `Within` used `b.Sub(a)`, which saturates; a span past the largest Duration held against
+   a Max of exactly that. Now `!b.After(a.Add(limit))`.
+3. `Compare` kept the iterator's Context map; an iterator that reuses its map rewrote a
+   recorded diff. Now each diff holds a copy.
+4. `Compare` missed a cancel with no request after it (cancelled before an empty iterator,
+   or after the last yield). Now checked at entry and after the loop.

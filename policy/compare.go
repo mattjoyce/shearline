@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"iter"
+	"maps"
 )
 
 // Diff is one request where two policies decide differently, with both decisions. Each
@@ -33,6 +34,9 @@ type Diff struct {
 //
 // When ctx is done, Compare stops and returns the diffs found before it, with ctx.Err().
 func Compare(ctx context.Context, a, b Policy, reqs iter.Seq[Request]) ([]Diff, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("policy: compare: %w", err)
+	}
 	var diffs []Diff
 	for req := range reqs {
 		if err := ctx.Err(); err != nil {
@@ -47,7 +51,13 @@ func Compare(ctx context.Context, a, b Policy, reqs iter.Seq[Request]) ([]Diff, 
 		if (errA == nil) == (errB == nil) && (errA != nil || da.Allow == db.Allow) {
 			continue
 		}
+		// The iterator may reuse its Context map; the diff keeps its own copy, so the
+		// request it records is the one that was decided.
+		req.Context = maps.Clone(req.Context)
 		diffs = append(diffs, Diff{Request: req, A: da, B: db, ErrA: errA, ErrB: errB})
+	}
+	if err := ctx.Err(); err != nil {
+		return diffs, fmt.Errorf("policy: compare: %w", err)
 	}
 	return diffs, nil
 }

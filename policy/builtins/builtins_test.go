@@ -55,6 +55,11 @@ func TestHolds(t *testing.T) {
 		{"end before start", Within, []tarski.Const{s("2026-11-04T09:10:00Z"), s("2026-11-04T09:00:00Z"), s("15m")}, false},
 		{"negative max", Within, []tarski.Const{s("2026-11-04T09:00:00Z"), s("2026-11-04T09:00:00Z"), s("-1m")}, false},
 		{"bad max", Within, []tarski.Const{s("2026-11-04T09:00:00Z"), s("2026-11-04T09:00:00Z"), s("soon")}, false},
+		{"offset hour 24", Before, []tarski.Const{s("2026-11-04T09:00:00+24:00"), s("2026-11-04T09:00:00Z")}, false},
+		{"offset minute 75", Before, []tarski.Const{s("2026-11-04T09:00:00+00:75"), s("2026-11-05T09:00:00Z")}, false},
+		{"offset 23:59 is fine", Before, []tarski.Const{s("2026-11-04T09:00:00+23:59"), s("2026-11-04T09:00:00Z")}, true},
+		{"offset in within", Within, []tarski.Const{s("2026-11-04T09:00:00Z"), s("2026-11-05T09:10:00+24:00"), s("15m")}, false},
+		{"span past the largest duration", Within, []tarski.Const{s("0001-01-01T00:00:00Z"), s("9999-01-01T00:00:00Z"), s("2562047h47m16.854775807s")}, false},
 		{"number max", Within, []tarski.Const{s("2026-11-04T09:00:00Z"), s("2026-11-04T09:00:00Z"), num(t, "900")}, false},
 	}
 	for _, c := range cases {
@@ -84,6 +89,7 @@ func TestCheck(t *testing.T) {
 		{"bad addr", InCIDR, []*tarski.Const{p(s("ten")), nil}, `Addr: "ten"`},
 		{"number network", InCIDR, []*tarski.Const{nil, p(num(t, "8"))}, `Network: "8"`},
 		{"good times", Before, []*tarski.Const{p(s("2026-11-04T09:00:00Z")), nil}, ""},
+		{"offset hour 24 at load", Before, []*tarski.Const{p(s("2026-11-04T09:00:00+24:00")), nil}, `A: "2026-11-04T09:00:00+24:00"`},
 		{"bad B", Before, []*tarski.Const{nil, p(s("tomorrow"))}, `B: "tomorrow"`},
 		{"good max", Within, []*tarski.Const{nil, nil, p(s("72h"))}, ""},
 		{"negative max", Within, []*tarski.Const{nil, nil, p(s("-5m"))}, `Max: "-5m"`},

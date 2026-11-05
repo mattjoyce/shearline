@@ -142,3 +142,50 @@ func TestCompare_MalformedOnOneSideIsADiff(t *testing.T) {
 		t.Fatalf("both sides malformed: %d diffs, %v; want none", len(diffs), err)
 	}
 }
+
+// An iterator may reuse one Context map between requests; a diff keeps the request it
+// decided, not what the map holds later.
+func TestCompare_DiffKeepsItsOwnContext(t *testing.T) {
+	withHour := mustLoadConfig(t, Config{Standing: fixture(), Sets: rbacOnly(), Context: map[string]tarski.Kind{"hour": tarski.KindNumber}})
+	without := mustLoad(t, fixture(), RBAC())
+	noon, _ := tarski.Number("12")
+	shared := map[string]tarski.Const{"hour": noon}
+	seq := iter.Seq[Request](func(yield func(Request) bool) {
+		if !yield(Request{Principal: "bo", Action: "read", Resource: "timeline/bp", Context: shared}) {
+			return
+		}
+		delete(shared, "hour") // the same map, now empty: both policies decide it alike
+		yield(Request{Principal: "bo", Action: "read", Resource: "timeline/bp", Context: shared})
+	})
+	diffs, err := Compare(context.Background(), withHour, without, seq)
+	if err != nil || len(diffs) != 1 {
+		t.Fatalf("Compare = %d diffs, %v; want 1", len(diffs), err)
+	}
+	if got, ok := diffs[0].Request.Context["hour"]; !ok || got.Text() != "12" {
+		t.Fatalf("diff context = %v, want hour 12 as decided", diffs[0].Request.Context)
+	}
+}
+
+// Cancellation is reported even when no request follows it.
+func TestCompare_CancelWithNoFurtherRequest(t *testing.T) {
+	a := mustLoad(t, fixture(), RBAC())
+	b := mustLoad(t, append(fixture(), Deny("ana", "read", "timeline/bp")), RBAC())
+
+	done, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := Compare(done, a, b, slices.Values([]Request(nil))); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled before, empty iterator: err = %v, want context.Canceled", err)
+	}
+
+	ctx, cancel2 := context.WithCancel(context.Background())
+	defer cancel2()
+	last := iter.Seq[Request](func(yield func(Request) bool) {
+		if yield(Request{Principal: "ana", Action: "read", Resource: "timeline/bp"}) {
+			cancel2() // after the last request was decided
+		}
+	})
+	diffs, err := Compare(ctx, a, b, last)
+	if !errors.Is(err, context.Canceled) || len(diffs) != 1 {
+		t.Fatalf("cancelled after the last yield: %d diffs, %v; want 1 and context.Canceled", len(diffs), err)
+	}
+}
