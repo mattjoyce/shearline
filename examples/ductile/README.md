@@ -4,11 +4,29 @@ SPEC.md step 7 said: load Ductile's tokens and config as standing facts, ask req
 `Request`, and see whether an assumption shaped by Anam leaks. This directory is that
 exercise, with the answer pinned as a test.
 
+## Why this example is here
+
+It is a parity test against a real consumer. Ductile already enforces token scopes with its
+own Go. The question is not whether Shearline can express a scope model, but whether it
+expresses *this* one exactly, with nothing shaped by Anam (whose evaluator became tarski)
+leaking in. So the test transcribes Ductile's own semantics and compares every
+answer. Where the Shearline model and Ductile disagree, the test fails.
+
+It also shows the value of the move: the same answers, plus a proof for every allow and a
+reason for every deny, from rules a reviewer can read in one sitting.
+
+It is part of Shearline's root module (it needs no dependency of its own), so CI runs it on
+every change against the `policy` package in this tree.
+
+## Run it
+
+From the repository root:
+
 ```
-go run .                                       # every token against every route
-go run . readonly POST '/pipeline/{pipeline}'  # one deny, with the reason
-go run . operator POST '/pipeline/{pipeline}'  # one allow, with the proof
-go test .
+go run ./examples/ductile                                       # every token against every route
+go run ./examples/ductile readonly POST '/pipeline/{pipeline}'  # one deny, with the reason
+go run ./examples/ductile operator POST '/pipeline/{pipeline}'  # one allow, with the proof
+go test ./examples/ductile
 ```
 
 ## The shape

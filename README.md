@@ -137,9 +137,13 @@ allow("ana", "read", "timeline/secret") is not derived
   and it carries no context, so it is discovery, not a gate: `Decide` every resource you then act on.
   To list who may do something, loop over your principals and call `Decide`.
 - **Render a receipt.** `Proof` and `Why` print as indented text and marshal to compact JSON.
-- **See it embedded.** `examples/logsvc` is a worked example: a log service whose roles and
-  tokens live in two YAML files, with the one function that turns them into facts, a policy
-  swap for run-time changes, and the matrix pinned as a test. Its comments are the tutorial.
+- **See it embedded.** Three worked examples, indexed in `examples/README.md`.
+  `examples/logsvc` is the smallest: a log service whose roles and tokens live in two YAML
+  files, with the one function that turns them into facts, a policy swap for run-time
+  changes, and the matrix pinned as a test. `examples/ductile` holds Shearline to Ductile's
+  token scopes with a parity test. `examples/hrchat` is the large case: an HR chatbot's tool
+  gate over a 1001-person organisation, with consumer relations, attested context, a hashed
+  ledger, decision cost and an audit over the ledger.
 
 ## Reference
 
