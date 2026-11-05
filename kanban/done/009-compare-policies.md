@@ -1,7 +1,7 @@
-# 004 Compare two policies over a set of requests
+# 009 Compare two policies over a set of requests
 
 Asked for by: Matt, after a comparison with Cedar (2026-11-02).
-Owner: shearline-lead. Status: BUILT on feat/004-compare-policies. Release: additive (new function and types).
+Owner: shearline-lead. Status: DONE (v0.5.0). Renumbered from 004, which hrchat-example (PR #10) took first. Release: additive (new function and types).
 Written in ASD-STE100.
 
 ## Job story

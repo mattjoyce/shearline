@@ -1,6 +1,6 @@
 # 007 Deny properties, checked over the request space
 
-Owner: hrchat. Needs: Shearline `Compare` (shearline card 004, built). Written in ASD-STE100.
+Owner: hrchat. Needs: Shearline `Compare` (shearline card 009, built). Written in ASD-STE100.
 
 ## Why this is useful
 

@@ -94,7 +94,7 @@ Built on branch `feat/005-consumer-builtins`.
 
 ## Review (2026-11-05)
 
-Cross-vendor audit by Sol (GPT-6.1) of cards 004 and 005. Four findings, each reproduced, fixed
+Cross-vendor audit by Sol (GPT-6.1) of cards 009 (then 004) and 005. Four findings, each reproduced, fixed
 and pinned by a test that fails on the old code:
 
 1. `Before`/`Within` accepted an offset hour of 24 (`time.Parse` allows `+24:00`), so a

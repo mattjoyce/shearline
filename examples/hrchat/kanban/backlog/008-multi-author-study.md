@@ -22,7 +22,7 @@ gap, or the translation has a slip, and the diff names the request.
 3. Load each one with the same facts. A rule set that does not load is a result: record the
    error.
 4. `Compare` each pair over card 007's sample (or, before 007, over the 39 scenario requests
-   and a grid like card 004's hrchat test). Record the diff count per pair and each diff with
+   and a grid like shearline card 009's hrchat test). Record the diff count per pair and each diff with
    both `Explain` lines.
 5. For each diff, classify: English gap (two readings are both faithful), translation slip (one
    reading is not faithful), or Shearline gap (the English says something the language cannot).
