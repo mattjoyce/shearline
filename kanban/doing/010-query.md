@@ -235,4 +235,106 @@ space.
 
 ## Result
 
-_(for the builder)_
+2026-11-07. Status: STOPPED at acceptance 12. The card stays open.
+Card 007 keeps its `Decide` loop for the full space.
+No implementation or migration changes follow the failed measurement.
+
+### Measurement and stop finding
+
+`SHEARLINE_QUERY_MEASURE=1 go test ./examples/hrchat/hrpolicy -run
+'^TestQuery_HRChatMeasurement$' -count=1 -v -timeout=10m` runs both sides
+in one test binary. The machine runs Go 1.27.3 on darwin/arm64.
+The test uses org seed 1. It makes 30 Query calls and 5,760 evaluations.
+The loop makes 388,800 decisions. Every loop decision agrees with its Matrix.
+The test source fixes the principal selection and the ten candidates per principal.
+
+| Run | Query wall time | Loop wall time | Query / loop |
+|---|---:|---:|---:|
+| Initial | 9.903451083 s | 38.631347792 s | 0.256358 |
+| Isolated confirmation | 9.836787875 s | 35.491570500 s | 0.277158 |
+
+The initial run overlaps the golden and package coverage checks at startup.
+The confirmation run has no other verification command running.
+Both runs report these per-evaluation maxima:
+
+| Side | Largest Steps | Largest Bytes |
+|---|---:|---:|
+| Query | 18,421 | 12,595 |
+| Decide loop | 170 | 621 |
+
+The bounds are 4,194,304 steps and 1,048,576 bytes.
+Query uses 0.4392% of the step bound and 1.2012% of the byte bound.
+The 25% cost trigger does not fire. Card 003 needs no trigger entry.
+The time ratio exceeds 0.1. Acceptance 12 fails. The stop rule applies.
+No optimisation follows this finding.
+
+### Evidence at the stop
+
+1. `TestQuery_Agreement` passes over the specified fixture space.
+2. `TestQuery_DenyApplies` passes.
+3. `TestQuery_Bags` passes. It also checks repeated bag indices and maximum cost.
+4. `TestQuery_OnlySpace` passes. It also excludes non-string columns.
+5. `TestQuery_Validation` and `TestQuery_DuplicatesAndCopies` pass.
+6. `TestQuery_Determinism` passes with equal JSON and ordered Allows.
+7. `TestQuery_TooLarge` passes. A successful bag precedes the bounded bag.
+8. `TestQuery_Cancel` passes at entry and during the second of three bags.
+9. `TestGolden_MatrixJSON` passes against `policy/testdata/matrix.golden.json`.
+10. The existing hrchat tests pass after the hrchat/2 key change.
+    The rule-set identity assertion now expects hrchat/2.
+11. `TestQuery_HRChatAgreement` passes over 2,000 seeded requests in 30 calls.
+    `TestQuery_HRChatPrincipalKey` passes over multi-principal spaces.
+    No second keying leak appears in these checks or in the full-space loop.
+    The manual hrchat/1 mutation is not run before the stop.
+    No observed mutation tuple is available.
+12. The measurement above fails its time bar.
+13. The hand-run query mutations are not run before the stop.
+14. `Permitted` has the requested Deprecated line.
+    `policy.go` differs from v0.5.0 by that line only.
+    The migration documents are not changed before the stop.
+15. Fable's read-only review does not run before the stop.
+
+### Corrections and limits
+
+Card 007 has no existing sample or executable space generator.
+The hrchat test files supply a deterministic 2,000-request sample and a full generator.
+The sample groups requests by principal as this card specifies.
+A one-principal Query cannot expose the old cross-principal met/1 leak.
+`TestQuery_HRChatPrincipalKey` adds the necessary multi-principal check.
+The mutation and its observed tuple remain unverified at the stop.
+
+New hrchat test code lives in `hrpolicy/query_test.go` and
+`hrpolicy/query_space_test.go`. Those tests need the consumer's private context and
+entitlement helpers. New production policy code stays in `policy/query.go`.
+The Matrix golden has no update flag. Its initial bytes come from the fixture,
+one Deny and two empty bags. The CHANGELOG entry remains unfinished at the stop.
+
+The normal Go build cache is outside the writable sandbox.
+Verification uses `GOCACHE=/private/tmp/shearline-go-cache`.
+Lint uses a temporary `GOLANGCI_LINT_CACHE`.
+The helper reports `Co-Authored-By: gpt-6.1-sol <noreply@openai.com>`.
+Explicit `git add` fails with `Unable to create '.git/index.lock': Operation not permitted`.
+The sandbox permits no approval escalation. No commit or push occurs.
+The caller's pre-existing untracked paths remain unchanged.
+
+
+### Verification of the stopped snapshot
+
+| Command | Actual result |
+|---|---|
+| `gofmt -l .` | No output. Exit 0. |
+| `go vet ./...` | No output. Exit 0. |
+| `go test -race -shuffle=on -count=1 ./...` | All eight test packages pass. The hrchat command package has no tests. Exit 0. |
+| `cd examples/logsvc && go test ./...` | `ok github.com/mattjoyce/shearline/examples/logsvc 0.711s`. Exit 0. |
+| `golangci-lint run ./...` | `0 issues.` Exit 0. |
+| `gosec ./...` | 18 files, 2,980 lines, 1 Nosec, 0 issues. Exit 0. |
+| `go test -cover ./policy/` | `coverage: 94.7% of statements`. Exit 0. |
+
+The full measurement test is opt-in through `SHEARLINE_QUERY_MEASURE=1`.
+The normal test gate skips it. Its two explicit runs fail as recorded above.
+The receipt's CHANGELOG entry, the README migrations, DESIGN amendment, card 007
+migration, hand-run mutations and cross-vendor review remain unfinished under the stop rule.
+
+One mutation needs review before a later build resumes.
+`Result.Relation` already sorts string tuples. Query visits bags in index order.
+Removing only the final Allows sort appears to preserve the required order.
+This is a source-level observation. The manual mutation is not run at the stop.

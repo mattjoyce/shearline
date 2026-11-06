@@ -256,6 +256,7 @@ func (p Policy) Decide(ctx context.Context, req Request) (Decision, error) {
 // The third column of permit/3 is a contract the consumer's rule sets must keep: a
 // non-empty string. A permit tuple for this principal and action that breaks it makes
 // Permitted return ErrInvalid, not a listing with a blank or a number in it.
+// Deprecated: use Query; removed in v0.7.0.
 func (p Policy) Permitted(ctx context.Context, principal, action string) ([]string, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("policy: permitted: %w", err)
