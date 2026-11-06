@@ -338,3 +338,29 @@ One mutation needs review before a later build resumes.
 `Result.Relation` already sorts string tuples. Query visits bags in index order.
 Removing only the final Allows sort appears to preserve the required order.
 This is a source-level observation. The manual mutation is not run at the stop.
+
+### Two measurements after the stop (Splendid, 2026-11-07)
+
+Both are throwaway tests over org seed 1, Go 1.27.3, darwin/arm64, not kept in the tree.
+
+**Equal work.** Acceptance 12 compares unequal work. The card's bag scheme for 007 puts
+all ten candidate resources under each of the 192 bags, so Query answers 1,555,200 triples
+while the loop decides 388,800. The loop over the same 1,555,200 requests Query answered:
+
+| Side | Wall time | Per triple |
+|---|---:|---:|
+| Query (30 calls, 5,760 evaluations) | 9.80 s | 6.3 µs |
+| Decide loop (1,555,200 decisions) | 140.9 s | 90.6 µs |
+
+Ratio 0.0695. Every answer agrees. The engine meets the 0.1 bar; the measurement as
+written in acceptance 12 does not, because it credits the loop with a quarter of the work.
+
+**Wide Space.** One Space of all 30 principals, 27 actions and the 62-resource union, under 4
+no-requester bags: 200,880 triples, 14,152 allows, 1.43 s, Steps 2,317,129 (55.2 % of the
+bound), Bytes 446,191 (42.6 %). The same work as 30 narrow calls: 0.27 s. Per triple the
+cost is the same (7.1 µs against 8.4 µs); the wide shape is not faster, and it passes the
+25 % trigger. Card 003 has the numbers. Narrow Spaces are the right shape, and "split the
+Space" is a real remedy.
+
+Decision pending: restate acceptance 12 as equal work (met at 0.0695), then finish items 11,
+13, 14 and 15; or keep the bar as written and leave the card open.

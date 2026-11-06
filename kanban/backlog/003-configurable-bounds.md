@@ -15,6 +15,12 @@ Do not start this card until one of these is true:
 When the trigger fires, choose between this card and demand evaluation with those
 measurements. Record the measurements here first.
 
+Measured 2026-11-07 (card 010, Query): one wide Space over hrchat seed 1, 30 principals × 27
+actions × 62 resources under 4 context bags, 200,880 triples in one evaluation per bag:
+Steps 2,317,129 (55.2 % of the bound), Bytes 446,191 (42.6 %). A narrow Space of one
+principal stays under 0.5 %. The trigger fires for the wide shape only; the remedy today is
+"split the Space", so the card stays parked until a consumer needs the wide shape in one call.
+
 ## Why it is parked
 
 The bounds are a defence. A knob makes the defence easy to remove, and a consumer that meets
