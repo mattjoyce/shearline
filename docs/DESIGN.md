@@ -80,7 +80,34 @@ var ErrRequest error
 // action, the third column of permit/3, sorted and deduplicated. deny/3 does not apply
 // (deny is per concrete resource). The third column is a contract a consumer's set must
 // keep, a non-empty string; a tuple that breaks it is ErrInvalid, never listed.
+//
+// Deprecated: use Query; removed in v0.7.0.
 func (p Policy) Permitted(ctx context.Context, principal, action string) ([]string, error)
+
+// Space names the finite sets and ordered bags asked by Query. Empty axes or
+// Contexts are ErrRequest; use one nil/empty bag to ask with no context.
+type Space struct {
+    Principals []string
+    Actions    []string
+    Resources  []string
+    Contexts   []map[string]tarski.Const
+}
+type Allow struct {
+    Principal, Action, Resource string
+    Bag                         int
+    Proof                       tarski.Proof
+}
+type Matrix struct {
+    Space    Space    // canonical private copy: sorted unique sets, ordered bags
+    Allows   []Allow  // sorted by Bag, then fields Principal, Action, Resource
+    RuleSets []string
+    MaxSteps int      // maximum per evaluation, observation-only like Decision
+    MaxBytes int      // maximum per evaluation, not retained proof memory
+}
+func (p Policy) Query(ctx context.Context, s Space) (Matrix, error)
+
+// ErrKeying is a rule/engine error (5xx), never ErrRequest.
+var ErrKeying error
 
 type Decision struct {
     Allow    bool
@@ -225,6 +252,19 @@ resolution; the contract above is as amended by it.
    and no second rule set: at the scale its consumers have, tens of tokens, the loop costs
    microseconds, and a second evaluation mode would be a thing to keep consistent for a scale that
    does not exist. Revisit only when a consumer has many thousands of principals and asks often.
+
+   **2026-11-07 amendment.** Query answers the listing in one evaluation per context bag.
+   It agrees with the Decide loop under the keying contract: adding other request-axis
+   members must not change allow(p, a, r) for any existing triple. Every request-dependent
+   relation, including dependencies through negation, must retain and join all relevant
+   request-axis keys. Cross-member tests of either polarity are forbidden; request-derived
+   patterns may match only their own resource. Violations can add or remove allows.
+   Query checks retained proofs for foreign positive principal/action/resource leaves,
+   returning ErrKeying with no partial Matrix. Decide adjudicates the flagged tuple;
+   another derivation may allow it. The check is partial: negation can cause undetected
+   extra or missing allows. It does not prove the invariant. An unkeyed met/1,
+   direct(_, S), or cross-member negative test breaks the contract. Permitted is
+   deprecated and will be removed in v0.7.0.
 
 6. **A relation is a value or a builder, never both (2026-10-22).** Hickey's cut, not base-versus-
    derived: during evaluation every relation is a builder that accepts tuples; when `Evaluate`

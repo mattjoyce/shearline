@@ -3,6 +3,31 @@
 Shearline is pre-1.0 and the API may change. Each entry says what a consumer of the module can see.
 Rule-set hashes and answer hashes are part of that: a change to either is listed here.
 
+## Unreleased
+
+Planned v0.6.0:
+
+- Add `Policy.Query`, `Space`, `Allow` and `Matrix`: allow/3 with proofs over finite sets,
+  one bounded evaluation per explicit context bag, deny applied, whole-or-absent on error.
+  Empty sets or Contexts are ErrRequest; pass one nil/empty bag for no context. Matrix
+  echoes a canonical private Space. MaxSteps/MaxBytes are observation-only maxima.
+- Require request isolation: adding request-axis members must not change an existing
+  triple's answer. Dependencies of either polarity must retain and join their request
+  keys; request-derived patterns may match only their own resource. Query returns
+  ErrKeying for foreign positive request leaves (rule/engine error, never ErrRequest).
+  This proof check is partial: negation can cause undetected extra or missing allows.
+  Decide adjudicates flagged tuples.
+- Deprecate `Permitted`; removal in v0.7.0. Query lists concrete resources with context.
+- hrchat/2 keys met/unmet/cleared by principal, preventing the old met/1 self-approval
+  leak under Query. This changes the hrchat rule-set hash and receipts that include it.
+- The Matrix JSON golden now includes the canonical Space and excludes observational
+  costs. Rule-file comments now explain set evaluation; tarski hashes the full source,
+  so rbac/1 changes from `sha256:0bf5a1217fbaad382dd0f5044fa0e27c0fd978dec0c616576a066c862c5dbd36`
+  to `sha256:ddf7f82169141bb2a57603431555958952d9e44ac830bb00f032dea01a0bdaf0`.
+  Rule text and line numbers are preserved, so Proof bytes and Decide answers are unchanged;
+  receipts including rule-set IDs change.
+- ErrRequest's message is `malformed request`; operation wrappers supply `policy:` once.
+
 ## [v0.5.0](https://github.com/mattjoyce/shearline/releases/tag/v0.5.0) - 2026-11-06
 
 [Compare v0.4.0...v0.5.0](https://github.com/mattjoyce/shearline/compare/v0.4.0...v0.5.0)

@@ -136,10 +136,11 @@ allow("ana", "read", "timeline/secret") is not derived
   guards: `in_net(IP, "10.0.0.0/8")`. Package `policy/builtins` has `InCIDR`, `Before` and
   `Within`. A refusal's why-not names the guard and the values it got. A builtin is code: the
   rule-set hash covers the rule that names it, not the function.
-- **List what a principal holds.** `Permitted(ctx, principal, action)` returns the grant prefixes
-  from the same rules that gate requests. It does not apply `deny`, which is per concrete resource,
-  and it carries no context, so it is discovery, not a gate: `Decide` every resource you then act on.
-  To list who may do something, loop over your principals and call `Decide`.
+- **Ask what is permissible.** `Query(ctx, Space{Principals, Actions, Resources, Contexts})`
+  returns the allowed triples with proofs, one bounded evaluation per explicit context bag.
+  `deny` applies. An unnamed resource is not denied: it was not asked.
+  Use `Decide` for one request and its why-not; Query requires the [keying contract](policy/query.go)
+  and checks proofs for foreign request facts. Negation can cause undetected extra or missing allows.
 - **Compare two policies.** `Compare(ctx, a, b, reqs)` lists each request where two policies
   decide differently, with both decisions' proofs or why-nots: review that a change only removes
   access, or find where two authors' rule sets disagree. It covers the requests you give, not

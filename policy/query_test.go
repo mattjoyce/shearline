@@ -17,7 +17,7 @@ import (
 
 func querySpace() Space {
 	return Space{Principals: []string{"ana", "bo", "zed"}, Actions: []string{"read", "write", "delete"},
-		Resources: []string{"timeline/x", "docs/y", "timeline/secret", "other/z"}}
+		Resources: []string{"timeline/x", "docs/y", "timeline/secret", "other/z"}, Contexts: []map[string]tarski.Const{nil}}
 }
 
 func queryJSON(t *testing.T, m Matrix) []byte {
@@ -40,8 +40,8 @@ func mustQuery(t *testing.T, p Policy, s Space) Matrix {
 
 func assertZeroMatrix(t *testing.T, p Policy, m Matrix) {
 	t.Helper()
-	if m.Allows != nil || m.Steps != 0 || m.Bytes != 0 || !slices.Equal(m.RuleSets, p.ids) {
-		t.Fatalf("partial matrix: %d allows, %d steps, %d bytes, sets %v", len(m.Allows), m.Steps, m.Bytes, m.RuleSets)
+	if !reflect.DeepEqual(m.Space, Space{}) || m.Allows != nil || m.MaxSteps != 0 || m.MaxBytes != 0 || !slices.Equal(m.RuleSets, p.ids) {
+		t.Fatalf("partial matrix: %d allows, %d steps, %d bytes, sets %v", len(m.Allows), m.MaxSteps, m.MaxBytes, m.RuleSets)
 	}
 }
 
@@ -62,7 +62,7 @@ func TestQuery_Agreement(t *testing.T) {
 			for _, resource := range s.Resources {
 				d, err := p.Decide(context.Background(), Request{Principal: who, Action: action, Resource: resource})
 				if err != nil || d.Allow != got[[3]string{who, action, resource}] {
-					t.Fatalf("%s/%s/%s: decide=%v query=%v err=%v", who, action, resource, d.Allow, !d.Allow, err)
+					t.Fatalf("%s/%s/%s: decide=%v query=%v err=%v", who, action, resource, d.Allow, got[[3]string{who, action, resource}], err)
 				}
 				if d.Allow {
 					count++
@@ -70,14 +70,14 @@ func TestQuery_Agreement(t *testing.T) {
 			}
 		}
 	}
-	if len(m.Allows) != count || m.Steps == 0 || m.Bytes == 0 {
-		t.Fatalf("matrix has %d allows, want %d; cost %d/%d", len(m.Allows), count, m.Steps, m.Bytes)
+	if len(m.Allows) != count || m.MaxSteps == 0 || m.MaxBytes == 0 {
+		t.Fatalf("matrix has %d allows, want %d; cost %d/%d", len(m.Allows), count, m.MaxSteps, m.MaxBytes)
 	}
 }
 
 func TestQuery_DenyApplies(t *testing.T) {
 	p := mustLoad(t, append(fixture(), Deny("bo", "read", "timeline/secret")), RBAC())
-	s := Space{Principals: []string{"bo"}, Actions: []string{"read"}, Resources: []string{"timeline/secret", "timeline/x"}}
+	s := Space{Principals: []string{"bo"}, Actions: []string{"read"}, Resources: []string{"timeline/secret", "timeline/x"}, Contexts: []map[string]tarski.Const{nil}}
 	m := mustQuery(t, p, s)
 	if len(m.Allows) != 1 || m.Allows[0].Resource != "timeline/x" {
 		t.Fatalf("allows=%v", m.Allows)
@@ -99,7 +99,7 @@ func TestQuery_Bags(t *testing.T) {
 		t.Fatal("duplicate bag loses its index")
 	}
 	first := mustQuery(t, p, Space{Principals: s.Principals, Actions: s.Actions, Resources: s.Resources, Contexts: s.Contexts[:1]})
-	if m.Steps != first.Steps || m.Bytes != first.Bytes {
+	if m.MaxSteps != first.MaxSteps || m.MaxBytes != first.MaxBytes {
 		t.Fatal("cost is not the per-evaluation maximum")
 	}
 }
@@ -109,7 +109,7 @@ func TestQuery_OnlySpace(t *testing.T) {
 allow("bo", "other", "docs/y"). allow("bo", "read", "outside").
 allow(7, "read", "docs/y"). allow("bo", true, "docs/y"). allow("bo", "read", 9).`)
 	p := mustLoad(t, fixture(), RBAC(), stray)
-	s := Space{Principals: []string{"bo", "7"}, Actions: []string{"read", "true"}, Resources: []string{"docs/y", "9"}}
+	s := Space{Principals: []string{"bo", "7"}, Actions: []string{"read", "true"}, Resources: []string{"docs/y", "9"}, Contexts: []map[string]tarski.Const{nil}}
 	m := mustQuery(t, p, s)
 	if len(m.Allows) != 1 || m.Allows[0].Principal != "bo" || m.Allows[0].Action != "read" || m.Allows[0].Resource != "docs/y" {
 		t.Fatalf("outside tuples: %+v", m.Allows)
@@ -153,6 +153,13 @@ func TestQuery_DuplicatesAndCopies(t *testing.T) {
 	if !slices.Equal(before, queryJSON(t, m)) {
 		t.Fatal("duplicates change matrix")
 	}
+	if !slices.IsSorted(m.Space.Principals) || len(m.Space.Principals) != 3 || !slices.IsSorted(m.Space.Actions) || !slices.IsSorted(m.Space.Resources) {
+		t.Fatalf("noncanonical Space: %+v", m.Space)
+	}
+	m.Space.Principals[0] = "changed"
+	m.Space.Actions[0] = "changed"
+	m.Space.Resources[0] = "changed"
+	m.Space.Contexts[0]["changed"] = tarski.Bool(true)
 	m.RuleSets[0] = "changed"
 	m.Allows[0].Proof.Tuple[0] = tarski.String("changed")
 	if !slices.Equal(before, queryJSON(t, mustQuery(t, p, querySpace()))) {
@@ -187,7 +194,7 @@ func TestQuery_Determinism(t *testing.T) {
 }
 
 func TestQuery_TooLarge(t *testing.T) {
-	wide := ruleSet(t, "wide", `wide(P, A, R, Q) :- principal(P), action(A), resource(R), principal(Q), context("wide", true).`)
+	wide := ruleSet(t, "wide", `wide(P, A, R, Q) :- context("wide", true), principal(P), action(A), resource(R), principal(Q).`)
 	p := mustLoadConfig(t, Config{Standing: fixture(), Sets: []tarski.RuleSet{RBAC(), wide}, Context: map[string]tarski.Kind{"wide": tarski.KindBool}})
 	s := querySpace()
 	for i := range 64 {
@@ -198,7 +205,7 @@ func TestQuery_TooLarge(t *testing.T) {
 	s.Contexts = []map[string]tarski.Const{{"wide": tarski.Bool(false)}, {"wide": tarski.Bool(true)}}
 	m, err := p.Query(context.Background(), s)
 	var large *tarski.TooLarge
-	if !errors.As(err, &large) || !strings.Contains(err.Error(), "split the Space") {
+	if !errors.As(err, &large) || !strings.Contains(err.Error(), "bag 1 (|P|=67 |A|=67 |R|=68)") || !strings.Contains(err.Error(), "usually wrong, not large") {
 		t.Fatalf("err=%v, want TooLarge", err)
 	}
 	assertZeroMatrix(t, p, m)
@@ -245,7 +252,7 @@ func TestQuery_ContextSnapshot(t *testing.T) {
 	rules := ruleSet(t, "copy", `permit(P, A, R) :- principal(P), action(A), resource(R), context("bag", B), B < 3, guard(B).`)
 	p := mustLoadConfig(t, Config{Sets: []tarski.RuleSet{RBAC(), rules}, Context: map[string]tarski.Kind{"bag": tarski.KindNumber}, Builtins: map[string]tarski.Builtin{"guard": guard}})
 	m := mustQuery(t, p, s)
-	if len(m.Allows) != 72 || reflect.DeepEqual(s.Contexts[1], original) {
+	if len(m.Allows) != 72 || !reflect.DeepEqual(m.Space.Contexts[1], original) || reflect.DeepEqual(s.Contexts[1], original) {
 		t.Fatal("query does not snapshot the bags before evaluation")
 	}
 }
@@ -253,7 +260,16 @@ func TestQuery_ContextSnapshot(t *testing.T) {
 func TestGolden_MatrixJSON(t *testing.T) {
 	p := mustLoad(t, append(fixture(), Deny("bo", "read", "timeline/secret")), RBAC())
 	s := Space{Principals: []string{"bo"}, Actions: []string{"read"}, Resources: []string{"timeline/x", "timeline/secret"}, Contexts: []map[string]tarski.Const{nil, {}}}
-	got := append(queryJSON(t, mustQuery(t, p, s)), '\n')
+	m := mustQuery(t, p, s)
+	gotJSON, err := json.Marshal(struct {
+		Space    Space
+		Allows   []Allow
+		RuleSets []string
+	}{m.Space, m.Allows, m.RuleSets})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := append(gotJSON, '\n')
 	want, err := os.ReadFile("testdata/matrix.golden.json")
 	if err != nil {
 		t.Fatal(err)

@@ -549,7 +549,7 @@ func TestConsumerRelations_NilGivesSameAsBefore(t *testing.T) {
 		t.Fatalf("Decide = %+v, %v", d, err)
 	}
 	// RBAC hash pinned
-	if RBAC().ID() != "rbac/1 sha256:0bf5a1217fbaad382dd0f5044fa0e27c0fd978dec0c616576a066c862c5dbd36" {
+	if RBAC().ID() != "rbac/1 sha256:ddf7f82169141bb2a57603431555958952d9e44ac830bb00f032dea01a0bdaf0" {
 		t.Fatalf("RBAC ID = %s", RBAC().ID())
 	}
 	if _, err := Load(Config{Standing: fixture(), Sets: []tarski.RuleSet{RBAC()}}); err != nil {

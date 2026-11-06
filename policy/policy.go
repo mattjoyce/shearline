@@ -55,12 +55,16 @@ func RBAC() tarski.RuleSet {
 	return s
 }
 
-// requestRelations are the relations only a request may supply.
 // ErrRequest marks a request the policy refused as malformed (an empty principal, action
 // or resource, say). Errors that wrap it are the caller's to fix, a 4xx; any other error
 // is a broken policy or engine, a 5xx. The underlying ErrInvalid stays reachable.
-var ErrRequest = errors.New("policy: malformed request")
+var ErrRequest = errors.New("malformed request")
 
+// ErrKeying marks a proof that cites another member of the Query Space. The rule set
+// broke the keying contract; this is a 5xx-style rule/engine error, never ErrRequest.
+var ErrKeying = errors.New("rule set does not keep the keying contract")
+
+// requestRelations are the relations only a request may supply.
 var requestRelations = map[string]bool{"principal": true, "action": true, "resource": true, "context": true}
 
 // Request is the PARC shape: who, does what, to which, under what.
@@ -256,6 +260,7 @@ func (p Policy) Decide(ctx context.Context, req Request) (Decision, error) {
 // The third column of permit/3 is a contract the consumer's rule sets must keep: a
 // non-empty string. A permit tuple for this principal and action that breaks it makes
 // Permitted return ErrInvalid, not a listing with a blank or a number in it.
+//
 // Deprecated: use Query; removed in v0.7.0.
 func (p Policy) Permitted(ctx context.Context, principal, action string) ([]string, error) {
 	if err := ctx.Err(); err != nil {

@@ -4,7 +4,7 @@ Asked for by: Matt (2026-11-07), from the question Shearline could not answer: "
 "what may P do", the access matrix.
 Owner: shearline-lead. Status: DOING. Release: v0.6.0, additive (one method, three types;
 `Permitted` deprecated). Written in ASD-STE100. Drafted by Fable (read-only), built by Sol,
-reviewed by Fable.
+reviewed by GPT per the owner’s 2026-11-07 instruction.
 
 ## Job story
 
@@ -32,16 +32,18 @@ bounds, with `TooLarge` an error and never a shorter list.
 
 ## Change
 
-All new code is in `policy/query.go` and `policy/query_test.go`. `policy/policy.go` is 441
-lines, past the 400-line guideline; it gains the `Deprecated` line on `Permitted` and nothing
-else.
+Query and its proof check live in `policy/query.go`. Policy tests live in
+`policy/query_test.go` and `policy/query_contract_test.go`; hrchat tests use their private
+context and fixture builders. `policy/policy.go` adds ErrKeying and the real Permitted
+deprecation, and removes the duplicated policy prefix from ErrRequest. Decide and Query
+share `contextFacts` in `policy/facts.go`.
 
 ```go
 // Space is the sets one Query ranges over. Principals, Actions and Resources are sets: order
 // does not matter, a duplicate counts once, and an empty set is ErrRequest. Contexts is a
 // list, not a set: Query evaluates once per bag, and an Allow names its bag by index. A nil
-// or empty Contexts is one evaluation with no context. Query keeps none of the caller's
-// slices or maps.
+// or empty Contexts is ErrRequest; pass one nil or empty bag for no context.
+// Query keeps none of the caller's slices or maps.
 type Space struct {
 	Principals []string
 	Actions    []string
@@ -52,17 +54,18 @@ type Space struct {
 // Allow is one tuple of allow/3 that held, with its proof and the bag it held under.
 type Allow struct {
 	Principal, Action, Resource string
-	Bag                         int // index into Space.Contexts; 0 when Contexts was empty
+	Bag                         int // index into Space.Contexts
 	Proof                       tarski.Proof
 }
 
 // Matrix is the derived allow relation over a Space: every allowed triple, under each bag.
 // A Matrix is whole or absent: on any error Query returns a zero Matrix with RuleSets filled.
 type Matrix struct {
-	Allows   []Allow  // sorted by Bag, then Principal, Action, Resource, bytewise
+	Space    Space    // canonical private copy; sorted deduplicated sets, bag order preserved
+	Allows   []Allow  // sorted by Bag, then Principal, Action, Resource, field by field
 	RuleSets []string // as Decision.RuleSets
-	Steps    int      // the largest Steps of any one evaluation; the bounds are per evaluation
-	Bytes    int      // the largest Bytes of any one evaluation
+	MaxSteps int      // largest Steps of one evaluation; observation-only
+	MaxBytes int      // largest Bytes of one evaluation; observation-only
 }
 
 // Query holds every principal, action and resource of s as facts at the same time, evaluates
@@ -79,32 +82,34 @@ func (p Policy) Query(ctx context.Context, s Space) (Matrix, error)
    triple absent from the Matrix is denied only if it was in the Space. A resource the caller
    did not name is not denied: it was not asked, and the policy may allow it. The doc comment
    says this in these words or near them.
-3. **Keying contract.** Under Query every member of a set is a fact at once, and a rule reads
-   them all. A derived relation that reads `principal(P)`, `action(A)` or `resource(R)` and
-   does not carry that variable in its head holds for every member when it holds for one.
-   Under `Decide` the set has one member, so the two agree; under Query they do not. The
-   contract for a rule set: a derived relation that depends on a request fact carries that
-   fact's variable in its head, and a pattern joined to `resource(R)` by `prefix/2` ends with
-   the separator or the resource names are prefix-free. rbac/1 keeps it (every rule carries P,
-   A or R; patterns are the consumer's prefixes). hrchat/1 breaks it once, at
-   `hrchat.dl:38`: `met("four_eyes") :- principal(P), context("requester", Q), Q != P.` With two
-   principals in a Space, `met("four_eyes")` holds for both when it holds for one, `unmet` and
-   `cleared` follow, and a principal may approve the pay change they raised. hrchat's names
-   are prefix-free (fixed-width IDs, `org.go:24`), so its `permit(P, A, S)` column is safe
-   under `prefix/2`. The fix is item 11. Shearline does not check the contract statically in
-   this release; acceptance 1 and 11 are the check, and the `Query` doc states the contract.
+3. **Keying contract.** Adding other request-axis members must not change
+   `allow(p, a, r)` for any existing triple. Every request-dependent relation, including
+   dependencies through negation, must retain and join all relevant request-axis keys.
+   Cross-member request tests of either polarity are forbidden. Request-derived patterns
+   may match only their own resource. Violations can add or remove allows.
+   Query checks retained proofs for foreign positive principal/action/resource leaves;
+   a foreign leaf returns `ErrKeying`, never `ErrRequest`, with no partial Matrix.
+   Decide adjudicates the flagged tuple; another derivation may allow it. The check is
+   partial: negation can cause undetected extra or missing allows. No static proof is made.
+   Multi-member differential tests exercise each axis. rbac's standing grant patterns
+   keep the contract. hrchat/2 joins its keyed relations; its resource-derived patterns
+   require non-overlapping names in each Space. Generated IDs are prefix-free only
+   below 10,000. The panel observed the old met/1 leak:
+   `emp/E0950 approve.salary emp/E0002 requester=emp/E0950: Query=true Decide=false`.
 4. **Validation.** Each element passes Decide's `ErrRequest` rules: the schema's checks on
-   `Base.With` (a non-empty string), and `checkRequestContext` on each bag. An empty
-   `Principals`, `Actions` or `Resources` is `ErrRequest`: a question over nothing is
-   malformed, not an empty answer, since an empty answer passes a property check. An error
+   `Base.With` (a non-empty string), and `checkRequestContext` on every bag before the first
+   evaluation. An empty
+   `Principals`, `Actions`, `Resources` or `Contexts` is `ErrRequest`: a question over
+   nothing is malformed, not an empty answer, since an empty answer passes a property check. An error
    in bag k names k. A duplicate element counts once (`NewBase` says so).
 5. **Only the Space.** A rule set may derive `allow` tuples outside the sets, as it may derive
    `permit` tuples for anyone. Query lists a tuple only when each column is a string in its
    set (`Kind() == KindString` and membership), as `Permitted` keeps the caller's tuples.
 6. **Bounds and cost.** Each evaluation runs under `maxDecisionSteps` and `maxDecisionBytes`,
-   with `Options.Proofs` on. A `*TooLarge` is wrapped as `evalError` wraps it, with the
-   remedy "split the Space". `Matrix.Steps` and `Matrix.Bytes` are the largest of any one
-   evaluation, since the bounds are per evaluation; they are zero when `err != nil`. No
+   with `Options.Proofs` on. A `*TooLarge` names the bag and |P|, |A|, |R| and says a
+   bounded evaluation is usually wrong, not large: narrow the rules first. Query never
+   auto-splits. `Matrix.MaxSteps` and `Matrix.MaxBytes` are the largest of any one
+   evaluation, for observation only as in Decision; they are zero when `err != nil`. No
    separate result cap: `MaxBytes` bounds `allow/3` in each evaluation, and the caller bounds
    the count of evaluations with `len(Contexts)`. A cancelled `ctx` is an error at entry and
    before each evaluation, and the engine checks it every 1024 steps. On any error the Matrix
@@ -117,8 +122,10 @@ func (p Policy) Query(ctx context.Context, s Space) (Matrix, error)
 8. **Determinism.** The set facts are sorted before they are held (`sortedFacts`), and a bag's
    keys are sorted as `Request.facts` sorts them, so a proof is a function of the Space's
    content and not of the order given. `Allows` is sorted by Bag, Principal, Action, Resource.
-   `RuleSets` is the policy's own copy. Matrix carries no hash: as for `Decision`, the
-   consumer hashes the receipt it keeps. `encoding/json` on a Matrix gives tarski's frozen
+   `RuleSets` is the policy's own copy. Matrix echoes a canonical Space (sorted deduplicated
+   sets and private bags, JSON keys sorted) so Bag and absence remain interpretable. The
+   echo is readable without a digest lookup. Costs are excluded from the golden. Matrix
+   carries no hash: as for `Decision`, the consumer hashes the receipt it keeps. `encoding/json` on a Matrix gives tarski's frozen
    Proof bytes; a golden test pins it (acceptance 9).
 9. **Demand.** Query does not use `Plan.Demand`. A demand plan binds a position to one
    constant per evaluation, and Query has a set at every position of `allow/3`, so the
@@ -155,12 +162,14 @@ func (p Policy) Query(ctx context.Context, s Space) (Matrix, error)
 ### How card 007 uses Query
 
 One Query per principal, 30 calls per side: `Principals` the one principal, `Actions` all 27,
-`Resources` that principal's about ten candidates, `Contexts` the 32 bags with no requester
-or requester = self, plus 16 bags with requester = s for each candidate s (about 192 bags).
+`Resources` that principal's ten candidates, `Contexts` the 32 bags with no requester
+or requester = self, plus 16 bags with requester = s for each other candidate s. Self is
+already among the resources, so deduplication removes 16 bags per principal: 176 remain.
 Requester = subject depends on the resource, so it is a bag per candidate; under that bag the
 other nine resources answer "another person raised it", which is a correct answer and is
-kept. That is at most 5,760 evaluations of 270 triples per side, in place of 388,800 decisions
-per side. A hole is a tuple in the policy's Matrix that is not in the policy-plus-property
+kept. That is 5,280 evaluations of 270 triples per side, against the 375,840 unique requests
+007 needs. The historical un-deduplicated comparison below used 5,760 evaluations and
+388,800 decisions. A hole is a tuple in the policy's Matrix that is not in the policy-plus-property
 Matrix; both are sorted, so the difference is one merge. The hole carries the policy's proof,
 and `Decide` on the property side gives the Why for the report. The default `go test` run
 groups 007's seeded 2,000-request sample by principal into the same calls.
@@ -187,7 +196,7 @@ the side that allowed it; `Decide` on the other side gives its Why.
    another order gives byte-equal JSON, proofs included. `Allows` is in the stated order.
 7. `TooLarge`: a rule `wide(P, A, R, Q) :- principal(P), action(A), resource(R), principal(Q).`
    over sets sized past `maxDecisionSteps`. The error wraps `*tarski.TooLarge`, `Allows` is
-   nil, `Steps` and `Bytes` are zero.
+   nil, `MaxSteps` and `MaxBytes` are zero.
 8. Cancel: a context cancelled before the call is an error. A builtin whose `Holds` cancels
    the context during bag 2 of 3 gives `ctx.Err()` and a zero Matrix, not two bags of Allows.
 9. Golden: `policy/testdata/matrix.golden.json`, the Matrix over the fixture plus one Deny and
@@ -203,12 +212,24 @@ the side that allowed it; `Decide` on the other side gives its Why.
     `Steps` and `Bytes`, and the ratio. Bar: Query is at most one tenth of the loop's time,
     and no evaluation passes 25 % of either bound. Past 25 %, card 003's trigger fires:
     record the numbers there.
-13. Mutations of `query.go`, each caught: drop the membership filter (4 fails); drop the sort
-    (6 fails); return `Allows` found before an error (7 and 8 fail); `Bag` off by one (3
-    fails).
+12b. **Post hoc (2026-11-07).** Derived from card 007's needed work: Query must be no
+    slower than the Decide loop on the requests 007 actually needs (Query/loop <= 1),
+    and no single evaluation may exceed 25% of either bound on that shape. This replaces
+    no verdict: acceptance 12 remains FAIL as written. Confirm on org seeds 2, 3 and 4,
+    which did not choose this rule. Alternate Query/loop order by principal, interleave
+    two additional identical loops as an A/A noise floor, and log Go version, host,
+    platform and commit. Deduplicate bags on the Query side and needed requests on
+    the loop side: 176 bags per principal, 5,280 evaluations and 375,840 needed decisions.
+    Record wall times, A/A ratios and relative deltas, cost maxima and bound percentages.
+13. Mutations of `query.go`: drop the membership filter (4 fails); return `Allows`
+    found before an error (7 and 8 fail); `Bag` off by one (3 fails). Removing the final
+    sort is equivalent with tarski v0.3.2, whose Relation output is already sorted;
+    criterion 6 verifies observable ordering. Do not claim that mutation is caught.
 14. `Permitted` carries the `Deprecated` line; `go vet ./...` is clean; the four documents in
-    item 13 are changed; `policy.go` differs from v0.5.0 by the `Deprecated` line only.
-15. Cross-vendor: Sol builds; Fable reviews, read-only. Each finding is reproduced, fixed and
+    item 13 are changed. Panel follow-up also permits ErrKeying and the ErrRequest
+    message correction in `policy.go`.
+15. Independent GPT review (owner’s 2026-11-07 GPT-only instruction supersedes
+    the cross-vendor requirement): Sol builds; GPT reviews, read-only. Each finding is reproduced, fixed and
     pinned by a test that fails on the old code, as in card 005's review.
 
 ## Out of scope
@@ -358,11 +379,174 @@ written in acceptance 12 does not, because it credits the loop with a quarter of
 **Wide Space.** One Space of all 30 principals, 27 actions and the 62-resource union, under 4
 no-requester bags: 200,880 triples, 14,152 allows, 1.43 s, Steps 2,317,129 (55.2 % of the
 bound), Bytes 446,191 (42.6 %). The 007 shape under the same 4 bags, 30 narrow calls of
-27 × 10 triples, 32,400 triples: 0.27 s. Per triple the cost is the same (7.1 µs against
-8.4 µs); the wide shape is not faster per triple, and it passes the 25 % trigger. Card 003
-has the numbers. Narrow Spaces are the cheap shape. The luminary panel
+27 × 10 triples, 32,400 triples: 0.27 s. Per triple the measured costs are 7.1 µs and
+8.4 µs on these different shapes. The narrow comparator asks 32,400 triples, not the
+same work as the wide Space. The wide shape crosses the 25% trigger. Card 003 has the numbers. Narrow Spaces are the cheap shape. The luminary panel
 (`docs/reviews/luminary-010-query-2026-11-07/`) notes they are also the shape on which a
 principal-axis leak cannot show, so "split the Space" is not a safe remedy on its own.
 
-Decision pending: restate acceptance 12 as equal work (met at 0.0695), then finish items 11,
-13, 14 and 15; or keep the bar as written and leave the card open.
+2026-11-07 owner decision: acceptance 12 stays FAIL as written. The separately labelled
+post hoc acceptance 12b above tests card 007's needed work on held-out seeds 2–4.
+The measurements above are historical; their equal-work ratio does not change verdict 12.
+
+
+### Panel-fix follow-up (2026-11-07)
+
+The owner authorised the panel fixes after the stop. Acceptance 12 and its FAIL verdict
+remain unchanged. Acceptance 12b was written before the seed 2–4 confirmation runs.
+
+C1: Query now refuses a foreign request leaf with ErrKeying and a whole-or-absent Matrix.
+The table negative controls show principal-unkeyed, action-unkeyed, unjoined keyed and
+prefix failures, plus the undetected fail-closed negation case. The prefix control flags
+doc/10, never doc/1. The rbac and hrchat tests compare multi-member Spaces on every axis.
+The original single-principal HRChatAgreement remains and logs its principal-axis blind spot.
+
+**Acceptance 11/13, hand-run M3 (2026-11-07).** Replaced `direct(P, S)` with
+`direct(_, S)` in the permit rule at hrchat.dl:58. Ran
+`go test ./examples/hrchat/hrpolicy -run 'TestQuery_HRChat(MultiAxisAgreement|ManagerKey)$' -count=1 -v`.
+Both tests FAIL (exit 1), including:
+
+```text
+sample=0: policy: query: bag 0: allow(emp/E0963, approve.leave, emp/E0284) cites principal(emp/E0280): rule set does not keep the keying contract
+policy: query: bag 0: allow(emp/E0001, approve.leave, emp/E0005) cites principal(emp/E0004): rule set does not keep the keying contract
+```
+
+A temporary raw-evaluation probe, with rejection bypassed only for inspection, reports
+`M3 raw allows=20 flagged=9 divergent=9` (PASS, exit 0). All nine divergences are
+emp/E0001 on emp/E0005: approve.leave, read.emergency, read.history, read.leave,
+read.performance, read.profile, read.salary, request.salary and write.performance.
+The probe asserts flag iff Decide denies for every retained allow. Removed the temporary
+probe and restored query.go and hrchat.dl exactly. Byte comparison and before/after
+`git diff -- examples/hrchat/hrpolicy/hrchat.dl` equality both pass: the mutation leaves
+no change, while the authorised prose edits remain. The panel's met/1 tuple is
+`emp/E0950 approve.salary emp/E0002 requester=emp/E0950: Query=true Decide=false`.
+That met/1 tuple is panel evidence, not a second hand run in this follow-up.
+
+The shipped hrchat/2 proof-control test confirms `allows=23760 flagged=0` over the first
+eight property Spaces. The prefix negative control flags doc/10 and not doc/1.
+Acceptance 13's older query.go mutations are historical pending evidence; M3 is the
+new required mutation, now killed by both multi-axis and focused manager tests.
+
+
+**Negative controls (2026-11-07).**
+`go test ./policy -run '^TestQuery_KeyingViolations$' -count=1 -v` passes all five cases.
+Raw evaluation deliberately bypasses the Query control to expose the disagreement:
+
+| Case | Raw allows | Divergent tuples | Foreign proofs | Query outcome |
+|---|---:|---:|---:|---|
+| principal-unkeyed met/1 | 8 | 4 | 4 | ErrKeying, zero Matrix |
+| action-unkeyed | 8 | 4 | 4 | ErrKeying, zero Matrix |
+| unjoined direct(_, R) | 4 | 2 | 2 | ErrKeying, zero Matrix |
+| resource-derived prefix | 4 | 2 | 2 | ErrKeying for doc/10 citing resource(doc/1) |
+| negation blocked(A) | 0 | 4 | 0 | nil error, missing allows remain undetected |
+
+C2–C9: Matrix echoes a readable canonical Space, not a digest requiring a lookup;
+sets are sorted/deduplicated, bags are private maps with JSON-sorted keys and preserved
+indices. All bags validate before evaluation; empty Contexts is ErrRequest. TooLarge
+names the bag and set sizes without splitting. Permitted's Deprecated line begins a
+paragraph, with DESIGN's dated amendment. Costs are MaxSteps/MaxBytes, observation-only
+and excluded from the golden. Decide/Query share contextFacts; Query checks the proof
+ok flag; field-wise ordering and the actual Query failure value are documented/tested.
+ErrRequest no longer repeats the policy prefix. README, hrchat README, DESIGN,
+CHANGELOG and card 007's Method have the Query migration.
+
+
+**Acceptance 12b confirmation — PASS (post hoc, 2026-11-07).** Each seed was run alone:
+`SHEARLINE_QUERY_MEASURE=1 SHEARLINE_QUERY_SEED=<seed> go test ./examples/hrchat/hrpolicy -run '^TestQuery_HRChatMeasurement$' -count=1 -v -timeout=10m`.
+Every run made 30 Query calls, 5,280 evaluations (176 unique bags per principal), and
+375,840 unique needed decisions in each of three loops. All three loops agreed with
+Query. Query/loop order alternated per principal; the two additional identical loops
+supply an A/A noise floor. A/A relative delta is the absolute difference divided by
+their mean. Shape construction and answer comparison are outside the timed blocks.
+
+Environment logged by each run: Go go1.27.3, host macbookair.lan, darwin/arm64,
+commit eaad14a6d0ab1b1061d71780d9bf088cbf8c7643, with this uncommitted working tree
+under test; tarski v0.3.2. GOCACHE=/private/tmp/shearline-go-cache. No other verification
+command ran during these measurements.
+
+| Org seed | Query | Needed loop | Query/loop | A/A loop 1 | A/A loop 2 | A/A ratio | A/A relative delta |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 2 | 9.361771373 s | 34.570749586 s | 0.270800 | 34.496437417 s | 34.525760378 s | 0.999151 | 0.000850 |
+| 3 | 9.515756000 s | 34.778908665 s | 0.273607 | 34.760438124 s | 34.722093292 s | 1.001104 | 0.001104 |
+| 4 | 9.431422374 s | 34.720246583 s | 0.271640 | 34.589486625 s | 34.739988921 s | 0.995668 | 0.004342 |
+
+For every seed, Query MaxSteps=18,421 and MaxBytes=12,595; loop Steps=170 and Bytes=621.
+Bounds: 4,194,304 steps and 1,048,576 bytes. Query uses 0.4392% and 1.2012% respectively.
+All ratios are below 1 and every evaluation is below 25% of both bounds. Tests PASS
+in 114.01 s, 114.84 s and 114.54 s respectively (exit 0). The observations support 12b
+on the needed 007 shape only. Acceptance 12 remains FAIL; its text is unchanged.
+
+
+**Panel-fix gates (2026-11-07).** All exit 0. The Go cache and lint cache were under
+/private/tmp. Formatting checks all tracked Go files plus the new query_contract_test.go,
+without opening the excluded untracked paths.
+
+| Command | Actual output |
+|---|---|
+| `gofmt -l <tracked Go files plus policy/query_contract_test.go>` | Empty. |
+| `go vet ./...` | Empty. |
+| `go test -race ./...` | Eight packages `ok`; cmd/hrchat has no test files. No race reports. |
+| `golangci-lint run` | `0 issues.` |
+| `gosec ./...` | Files: 18; Lines: 3053; Nosec: 1; Issues: 0. |
+| `go test -cover ./policy` | `ok github.com/mattjoyce/shearline/policy 3.344s coverage: 94.9% of statements` |
+| `go test ./policy -run '^TestQuery_KeyingViolations$' -count=1 -v` | All five subtests PASS; `ok github.com/mattjoyce/shearline/policy 0.495s`. |
+
+The race output:
+
+```text
+ok github.com/mattjoyce/shearline/examples/ductile 3.033s
+ok github.com/mattjoyce/shearline/examples/hrchat/audit 2.072s
+ok github.com/mattjoyce/shearline/examples/hrchat/catalog 3.296s
+?  github.com/mattjoyce/shearline/examples/hrchat/cmd/hrchat [no test files]
+ok github.com/mattjoyce/shearline/examples/hrchat/gate 3.137s
+ok github.com/mattjoyce/shearline/examples/hrchat/hrpolicy 63.073s
+ok github.com/mattjoyce/shearline/examples/hrchat/org 5.352s
+ok github.com/mattjoyce/shearline/policy 9.990s
+ok github.com/mattjoyce/shearline/policy/builtins 5.127s
+```
+
+Acceptance 12 text was compared with HEAD and is unchanged; its FAIL verdict is retained.
+No requested C1–C9 fix remains undone. The undetected negation case is an explicit limit,
+and a static contract proof remains out of scope. Historical query.go source mutations
+and cross-vendor review are not rerun by this follow-up; acceptance 13's drop-sort claim
+is not established by these gates. No stage, commit or push; the excluded paths are untouched.
+
+
+### GPT-only completion and independent review (2026-11-07)
+
+The owner instructed "proceed with gpt only", replacing the Fable/cross-vendor review.
+The independent GPT reviewer found one P1: the revised positive-use contract still
+allowed nested negation to create extra allows with no foreign positive proof leaf.
+
+```datalog
+blocked(P) :- principal(P), not principal("eve").
+allow(P,A,R) :- principal(P), action(A), resource(R), not blocked(P).
+```
+
+With principals bo/eve, Query allows bo while Decide denies it, and Query returns no
+error. The retained proof cites only bo's own request facts. This rules out claiming
+that proof inspection detects every extra allow. The contract now requires request
+isolation through dependencies of either polarity, including direct request tests.
+The API and migration docs explicitly state that negation can cause undetected extra
+or missing allows. No static verification or complete runtime detector is claimed.
+`TestQuery_KeyingViolations/nested_negation` pins this limitation: 8 raw allows,
+4 divergences, zero foreign proofs, nil Query error. All six negative controls pass.
+The reviewer reported no other concrete blocking finding in the reviewed changes.
+
+Acceptance 13 was hand-run against the current tree, restoring query.go byte-for-byte
+in a finally block after every experiment. Membership removal fails OnlySpace;
+Bag+1 fails Bags; returning the accumulated Matrix on error fails both TooLarge and
+Cancel. Removing only the final sort passes Determinism: tarski v0.3.2 already sorts
+Relation tuples and Query visits bags in index order. The criterion now records this
+as an equivalent mutation, rather than claiming a test failure that did not happen.
+The explicit sort is retained to state Query's ordering independently of that detail.
+
+The historical acceptance-12 failure and acceptance-12b held-out results above remain
+unchanged. No release or push is authorised by this completion.
+
+Final GPT completion gates, all exit 0: `git diff --check`, gofmt over tracked Go files
+plus query_contract_test.go, `go test -race -shuffle=on -count=1 ./...`, `go vet ./...`,
+`golangci-lint run` (0 issues), and `gosec -quiet ./...` (no findings). The race suite
+passes all eight tested packages; cmd/hrchat has no tests. The measurement harness was
+not rerun: no evaluator, proof-control or measurement behavior changed in this review
+follow-up. The three held-out runs above remain the performance evidence.

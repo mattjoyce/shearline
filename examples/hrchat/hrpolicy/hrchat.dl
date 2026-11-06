@@ -5,7 +5,7 @@
 %
 % One namespace: an employee is "emp/<id>" whether asking or asked about. An action is
 % "<verb>.<field>": read.leave, write.bank, approve.salary. Every rule is seeded by the
-% request's principal, action or resource, so one decision derives one requester's world.
+% principal, action or resource; positive uses keep each axis's request variable joined.
 %
 % Standing relations, from the org and the catalogue:
 %   reports_to(E, M)       E's manager is M
@@ -44,7 +44,7 @@ attested(A) :- action(A), context("guardrail", "clean"), context("channel", C), 
 
 cleared(P, A) :- principal(P), attested(A), not unmet(P, A).
 
-% ---- Relationships, computed for the requester alone. ---------------------------------
+% ---- Relationships, keyed separately for each principal. ---------------------------------
 
 % A manager reaches their direct team and no further: a skip-level, an executive included,
 % asks HR. up/2 is the requester's own reporting line, for the denial below.

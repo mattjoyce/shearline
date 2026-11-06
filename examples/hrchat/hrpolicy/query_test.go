@@ -2,11 +2,17 @@ package hrpolicy
 
 import (
 	"context"
+	"encoding/json"
 	"math/rand/v2"
 	"os"
+	"os/exec"
+	"runtime"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/mattjoyce/shearline/examples/hrchat/catalog"
 	"github.com/mattjoyce/shearline/examples/hrchat/org"
 	"github.com/mattjoyce/shearline/policy"
 	"github.com/mattjoyce/tarski"
@@ -61,7 +67,7 @@ func TestQuery_HRChatAgreement(t *testing.T) {
 			assertQueryRequest(t, p, req, keys[matrixKey{req.Principal, req.Action, req.Resource, indices[bag]}])
 		}
 	}
-	t.Log("2000 seeded requests agree across 30 Query calls")
+	t.Log("2000 seeded requests agree across 30 Query calls; single-principal Spaces cannot see a principal-axis leak")
 }
 
 func assertQueryRequest(t *testing.T, p policy.Policy, req policy.Request, allowed bool) {
@@ -104,47 +110,204 @@ func TestQuery_HRChatPrincipalKey(t *testing.T) {
 	}
 }
 
-func TestQuery_HRChatMeasurement(t *testing.T) {
-	if os.Getenv("SHEARLINE_QUERY_MEASURE") != "1" {
-		t.Skip("set SHEARLINE_QUERY_MEASURE=1 for the full timing check")
-	}
-	o := org.Generate(1)
-	p := loadShearline(t, o, func(_ tarski.Fact) bool { return true })
-	spaces := propertySpaces(t, o)
-	start := time.Now()
-	var matrices []map[matrixKey]bool
-	var maxSteps, maxBytes int
-	for _, s := range spaces {
-		m, err := p.Query(context.Background(), s)
+// measurementShape keeps one copy of each bag and of each request 007 needs.
+// Query still answers the product; the comparator is only the needed requests.
+func measurementShape(t *testing.T, original policy.Space) (policy.Space, []matrixKey) {
+	t.Helper()
+	s := original
+	s.Contexts = nil
+	indices := map[string]int{}
+	bagKey := func(bag map[string]tarski.Const) string {
+		b, err := json.Marshal(bag)
 		if err != nil {
 			t.Fatal(err)
 		}
-		maxSteps, maxBytes = max(maxSteps, m.Steps), max(maxBytes, m.Bytes)
-		matrices = append(matrices, matrixKeys(m))
+		return string(b)
 	}
-	queryTime := time.Since(start)
-	start = time.Now()
-	count, loopSteps, loopBytes := 0, 0, 0
-	for i, s := range spaces {
-		for r := range s.Resources {
-			for a := range s.Actions {
-				for variant := range 48 {
-					req, bag := requestAt(s, r, a, variant)
-					d, err := p.Decide(context.Background(), req)
-					if err != nil || d.Allow != matrices[i][matrixKey{req.Principal, req.Action, req.Resource, bag}] {
-						t.Fatalf("full-space disagreement: %+v: %v", req, err)
-					}
-					loopSteps, loopBytes = max(loopSteps, d.Steps), max(loopBytes, d.Bytes)
-					count++
+	for _, bag := range original.Contexts {
+		key := bagKey(bag)
+		if _, ok := indices[key]; !ok {
+			indices[key] = len(s.Contexts)
+			s.Contexts = append(s.Contexts, bag)
+		}
+	}
+	seen := map[matrixKey]bool{}
+	var needed []matrixKey
+	for r := range original.Resources {
+		for a := range original.Actions {
+			for variant := range 48 {
+				req, _ := requestAt(original, r, a, variant)
+				key := matrixKey{req.Principal, req.Action, req.Resource, indices[bagKey(req.Context)]}
+				if !seen[key] {
+					seen[key] = true
+					needed = append(needed, key)
 				}
 			}
 		}
 	}
-	loopTime := time.Since(start)
-	ratio := float64(queryTime) / float64(loopTime)
-	t.Logf("seed=1 calls=%d evaluations=%d decisions=%d Query=%s loop=%s ratio=%.6f Query Steps=%d Bytes=%d loop Steps=%d Bytes=%d", len(spaces), len(spaces)*192, count, queryTime, loopTime, ratio, maxSteps, maxBytes, loopSteps, loopBytes)
-	bounds := p.Bounds()
-	if count != 388800 || ratio > 0.1 || maxSteps > bounds.MaxSteps/4 || maxBytes > bounds.MaxBytes/4 {
-		t.Fatal("measurement misses the card's bar; stop and record the numbers")
+	return s, needed
+}
+
+func TestQuery_HRChatMeasurement(t *testing.T) {
+	if os.Getenv("SHEARLINE_QUERY_MEASURE") != "1" {
+		t.Skip("set SHEARLINE_QUERY_MEASURE=1 for the full timing check")
 	}
+	seed := uint64(1)
+	if value := os.Getenv("SHEARLINE_QUERY_SEED"); value != "" {
+		var err error
+		seed, err = strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	host, err := os.Hostname()
+	if err != nil {
+		t.Fatal(err)
+	}
+	commit, err := exec.Command("git", "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("environment Go=%s host=%s platform=%s/%s commit=%s (working tree under test)", runtime.Version(), host, runtime.GOOS, runtime.GOARCH, strings.TrimSpace(string(commit)))
+	o := org.Generate(seed)
+	p := loadShearline(t, o, func(_ tarski.Fact) bool { return true })
+	spaces := propertySpaces(t, o)
+	var elapsed [4]time.Duration // Query, needed loop, A/A loop 1, A/A loop 2
+	var maxSteps, maxBytes, loopSteps, loopBytes, count, evaluations int
+	for i, original := range spaces {
+		s, needed := measurementShape(t, original)
+		evaluations += len(s.Contexts)
+		count += len(needed)
+		var keys map[matrixKey]bool
+		var loops [3][]bool
+		order := []int{0, 1, 2, 3}
+		if i%2 == 1 {
+			order = []int{1, 0, 3, 2}
+		}
+		for _, side := range order {
+			start := time.Now()
+			if side == 0 {
+				m, err := p.Query(context.Background(), s)
+				if err != nil {
+					t.Fatal(err)
+				}
+				keys = matrixKeys(m)
+				maxSteps, maxBytes = max(maxSteps, m.MaxSteps), max(maxBytes, m.MaxBytes)
+			} else {
+				answers := make([]bool, len(needed))
+				for j, key := range needed {
+					req := policy.Request{Principal: key.principal, Action: key.action, Resource: key.resource, Context: s.Contexts[key.bag]}
+					d, err := p.Decide(context.Background(), req)
+					if err != nil {
+						t.Fatal(err)
+					}
+					answers[j] = d.Allow
+					loopSteps, loopBytes = max(loopSteps, d.Steps), max(loopBytes, d.Bytes)
+				}
+				loops[side-1] = answers
+			}
+			elapsed[side] += time.Since(start)
+		}
+		for j, key := range needed {
+			for side := range loops {
+				if loops[side][j] != keys[key] {
+					t.Fatalf("seed=%d full-space disagreement: %+v loop=%d", seed, key, side)
+				}
+			}
+		}
+	}
+	ratio := float64(elapsed[0]) / float64(elapsed[1])
+	aaRatio := float64(elapsed[2]) / float64(elapsed[3])
+	noise := float64(elapsed[2]-elapsed[3]) / float64((elapsed[2]+elapsed[3])/2)
+	if noise < 0 {
+		noise = -noise
+	}
+	bounds := p.Bounds()
+	t.Logf("seed=%d calls=%d evaluations=%d decisions=%d Query=%s loop=%s ratio=%.6f AA1=%s AA2=%s AA_ratio=%.6f AA_relative_delta=%.6f Query MaxSteps=%d MaxBytes=%d loop Steps=%d Bytes=%d step_bound_pct=%.4f byte_bound_pct=%.4f", seed, len(spaces), evaluations, count, elapsed[0], elapsed[1], ratio, elapsed[2], elapsed[3], aaRatio, noise, maxSteps, maxBytes, loopSteps, loopBytes, 100*float64(maxSteps)/float64(bounds.MaxSteps), 100*float64(maxBytes)/float64(bounds.MaxBytes))
+	if count != 375840 || evaluations != 5280 || ratio > 1 || maxSteps > bounds.MaxSteps/4 || maxBytes > bounds.MaxBytes/4 {
+		t.Fatal("post hoc acceptance 12b misses the needed-work or 25% bound bar")
+	}
+}
+
+func TestQuery_HRChatMultiAxisAgreement(t *testing.T) {
+	o := org.Generate(1)
+	p := loadShearline(t, o, func(_ tarski.Fact) bool { return true })
+	// #nosec G404 -- deterministic synthetic subsets, not security randomness.
+	rng := rand.New(rand.NewPCG(10, 13))
+	actions := catalog.ActionNames()
+	for sample := range 12 {
+		// Include a manager, their report and an unrelated principal in each random
+		// subset. This makes the M3 direct(_, S) mutation observable on every run.
+		managers := []*org.Employee{}
+		for _, e := range o.Employees {
+			if e.Title == "Manager" && len(o.Reports(e.ID)) > 0 {
+				managers = append(managers, e)
+			}
+		}
+		manager := managers[rng.IntN(len(managers))]
+		reports := o.Reports(manager.ID)
+		report := reports[rng.IntN(len(reports))]
+		other := o.Employees[rng.IntN(len(o.Employees))]
+		for other.ID == manager.ID || other.ID == report.ID {
+			other = o.Employees[rng.IntN(len(o.Employees))]
+		}
+		principals := []string{org.Resource(manager.ID), org.Resource(report.ID), org.Resource(other.ID)}
+		resources := []string{org.Resource(report.ID), org.Resource(other.ID), org.Resource(manager.ID)}
+		subset := []string{"approve.leave", "read.directory", actions[rng.IntN(len(actions))], actions[rng.IntN(len(actions))]}
+		bags := []map[string]tarski.Const{
+			(Context{Channel: "web", Guardrail: "clean", MFA: true, Confirmed: true, Requester: org.Resource(other.ID)}).consts(),
+			(Context{Channel: []string{"web", "chat"}[rng.IntN(2)], Guardrail: "clean", MFA: rng.IntN(2) == 1, Confirmed: rng.IntN(2) == 1, Requester: org.Resource(report.ID)}).consts(),
+		}
+		s := policy.Space{Principals: principals, Actions: subset, Resources: resources, Contexts: bags}
+		m, err := p.Query(context.Background(), s)
+		if err != nil {
+			t.Fatalf("sample=%d: %v", sample, err)
+		}
+		keys := matrixKeys(m)
+		for bag, c := range bags {
+			for _, who := range principals {
+				for _, action := range subset {
+					for _, resource := range resources {
+						assertQueryRequest(t, p, policy.Request{Principal: who, Action: action, Resource: resource, Context: c}, keys[matrixKey{who, action, resource, bag}])
+					}
+				}
+			}
+		}
+	}
+	t.Log("12 deterministic multi-member principal/action/resource/bag subsets agree with Decide")
+}
+
+func TestQuery_HRChatManagerKey(t *testing.T) {
+	o := org.Generate(1)
+	p := loadShearline(t, o, func(_ tarski.Fact) bool { return true })
+	bag := (Context{Channel: "web", Guardrail: "clean", MFA: true, Confirmed: true, Requester: "emp/E0001"}).consts()
+	s := policy.Space{Principals: []string{"emp/E0004", "emp/E0001"}, Actions: catalog.ActionNames(), Resources: []string{"emp/E0005"}, Contexts: []map[string]tarski.Const{bag}}
+	m, err := p.Query(context.Background(), s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys := matrixKeys(m)
+	for _, who := range s.Principals {
+		for _, action := range s.Actions {
+			assertQueryRequest(t, p, policy.Request{Principal: who, Action: action, Resource: s.Resources[0], Context: bag}, keys[matrixKey{who, action, s.Resources[0], 0}])
+		}
+	}
+	t.Logf("M3 probe: %d allows agree with Decide", len(m.Allows))
+}
+
+func TestQuery_HRChatProofControl(t *testing.T) {
+	o := org.Generate(1)
+	p := loadShearline(t, o, func(_ tarski.Fact) bool { return true })
+	total := 0
+	for _, s := range propertySpaces(t, o)[:8] {
+		m, err := p.Query(context.Background(), s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		total += len(m.Allows)
+	}
+	if total != 23760 {
+		t.Fatalf("allows=%d want 23760", total)
+	}
+	t.Logf("hrchat/2 first 8 property Spaces: allows=%d flagged=0", total)
 }

@@ -116,8 +116,6 @@ func Deny(principal, action, resource string) tarski.Fact {
 	return fact("denied", principal, action, resource)
 }
 
-// facts builds the facts of one request, context keys sorted so the base, and any
-// proof drawn from it, does not depend on map order.
 // kindName is a constant kind in words, for a message.
 func kindName(k tarski.Kind) string {
 	switch k {
@@ -154,19 +152,26 @@ func contextCheck(declared map[string]tarski.Kind) func(tarski.Atom) error {
 	}
 }
 
+// facts builds one request using the shared, sorted context builder.
 func (r Request) facts() []tarski.Fact {
 	fs := []tarski.Fact{
 		fact("principal", r.Principal),
 		fact("action", r.Action),
 		fact("resource", r.Resource),
 	}
-	keys := make([]string, 0, len(r.Context))
-	for k := range r.Context {
+	return append(fs, contextFacts(r.Context)...)
+}
+
+// contextFacts sorts keys so bases and proofs do not depend on map order.
+func contextFacts(c map[string]tarski.Const) []tarski.Fact {
+	var fs []tarski.Fact
+	keys := make([]string, 0, len(c))
+	for k := range c {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		fs = append(fs, tarski.Fact{Relation: "context", Tuple: tarski.Tuple{tarski.String(k), r.Context[k]}})
+		fs = append(fs, tarski.Fact{Relation: "context", Tuple: tarski.Tuple{tarski.String(k), c[k]}})
 	}
 	return fs
 }
