@@ -3,9 +3,9 @@
 Shearline is pre-1.0 and the API may change. Each entry says what a consumer of the module can see.
 Rule-set hashes and answer hashes are part of that: a change to either is listed here.
 
-## Unreleased
+## [v0.6.0](https://github.com/mattjoyce/shearline/releases/tag/v0.6.0) - 2026-11-07
 
-Planned v0.6.0:
+[Compare v0.5.0...v0.6.0](https://github.com/mattjoyce/shearline/compare/v0.5.0...v0.6.0)
 
 - Add `Policy.Query`, `Space`, `Allow` and `Matrix`: allow/3 with proofs over finite sets,
   one bounded evaluation per explicit context bag, deny applied, whole-or-absent on error.
@@ -27,6 +27,8 @@ Planned v0.6.0:
   Rule text and line numbers are preserved, so Proof bytes and Decide answers are unchanged;
   receipts including rule-set IDs change.
 - ErrRequest's message is `malformed request`; operation wrappers supply `policy:` once.
+- The owner accepted the missed original 10× performance target. Held-out needed-work
+  measurements passed the separate 12b criterion; criterion 12 remains recorded as FAIL.
 
 ## [v0.5.0](https://github.com/mattjoyce/shearline/releases/tag/v0.5.0) - 2026-11-06
 

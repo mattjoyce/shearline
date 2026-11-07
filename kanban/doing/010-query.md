@@ -571,3 +571,6 @@ follow-up. The three held-out runs above remain the performance evidence.
   remains partial, with undetected extra or missing allows possible under negation.
   No further performance optimisation is required for card 010. Merge and release are
   still pending; accepting the shortfall does not itself publish a release or push a branch.
+
+- 2026-11-07: Matt instructed proceeding with merge and release on the accepted-performance
+  basis. Release preparation targets v0.6.0; GitHub CI must pass before merge and tagging.
