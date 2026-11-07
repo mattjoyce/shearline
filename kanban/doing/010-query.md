@@ -6,6 +6,13 @@ Owner: shearline-lead. Status: DOING. Release: v0.6.0, additive (one method, thr
 `Permitted` deprecated). Written in ASD-STE100. Drafted by Fable (read-only), built by Sol,
 reviewed by GPT per the owner’s 2026-11-07 instruction.
 
+## Current disposition
+
+2026-11-07: ACCEPTED by Matt with the acceptance-12 performance exception below.
+Implementation and review are complete; merge and release remain pending. Acceptance 12
+stays FAIL as measured. Its stop rule no longer blocks shipping Query: acceptance 12b's
+held-out results justify the intended workload. Earlier STOPPED entries below are historical.
+
 ## Job story
 
 When I want to know what a policy permits over the principals, actions and resources I know,
@@ -550,3 +557,17 @@ plus query_contract_test.go, `go test -race -shuffle=on -count=1 ./...`, `go vet
 passes all eight tested packages; cmd/hrchat has no tests. The measurement harness was
 not rerun: no evaluator, proof-control or measurement behavior changed in this review
 follow-up. The three held-out runs above remain the performance evidence.
+
+
+## Narrative
+
+- 2026-11-07: Matt explicitly accepted the performance shortfall after considering
+  further optimisation. The original 10× target has no demonstrated product requirement;
+  Query is already faster on the intended workload and acceptance 12b passed its held-out
+  needed-work and evaluation-bound checks. Acceptance 12 remains FAIL, not relabelled or
+  replaced. This owner-approved exception removes the performance stop for shipping Query.
+  Astra found no new correctness or security issue; its sole stale bounds-guidance finding
+  was fixed in 161b454. Request isolation remains a caller obligation, and the proof check
+  remains partial, with undetected extra or missing allows possible under negation.
+  No further performance optimisation is required for card 010. Merge and release are
+  still pending; accepting the shortfall does not itself publish a release or push a branch.
