@@ -1,0 +1,22 @@
+{
+  "server": "demo",
+  "bindings": [
+    {
+      "tool": "read_record",
+      "action": "demo.read_record",
+      "definition_hash": "sha256:27f5e4f0e69304621bf769b9a08186039432c846fd76233ad0fb38bfe199a53a",
+      "resource": "records/",
+      "resource_argument": "id"
+    },
+    {
+      "tool": "save_record",
+      "action": "demo.save_record",
+      "definition_hash": "sha256:f0109988b88dd57c248fc51243443d5e5d0b90ab484e06d0c3b94c0a4f11c9b4",
+      "resource": "records/",
+      "resource_argument": "id"
+    }
+  ],
+  "roles": [{"principal": "agent-alice", "role": "reader"}],
+  "grants": [{"role": "reader", "action": "demo.read_record", "prefix": "records/"}],
+  "denials": [{"principal": "agent-alice", "action": "demo.read_record", "resource": "records/secret/"}]
+}

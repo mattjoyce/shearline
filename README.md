@@ -146,13 +146,15 @@ allow("ana", "read", "timeline/secret") is not derived
   access, or find where two authors' rule sets disagree. It covers the requests you give, not
   every possible request.
 - **Render a receipt.** `Proof` and `Why` print as indented text and marshal to compact JSON.
-- **See it embedded.** Three worked examples, indexed in `examples/README.md`.
+- **See it embedded.** Four worked examples, indexed in `examples/README.md`.
   `examples/logsvc` is the smallest: a log service whose roles and tokens live in two YAML
   files, with the one function that turns them into facts, a policy swap for run-time
   changes, and the matrix pinned as a test. `examples/ductile` holds Shearline to Ductile's
   token scopes with a parity test. `examples/hrchat` is the large case: an HR chatbot's tool
   gate over a 1001-person organisation, with consumer relations, attested context, a hashed
-  ledger, decision cost and an audit over the ledger.
+  ledger, decision cost and an audit over the ledger. [`examples/mcpgate`](examples/mcpgate/README.md)
+  proxies an existing stdio MCP server, generates tool actions, and enforces reviewed
+  policy on every call, with a local demonstration and separate authorization/execution receipts.
 
 ## Reference
 
@@ -168,11 +170,14 @@ go doc github.com/mattjoyce/tarski
 why-not, hashed rule sets; its contract is its own `docs/DESIGN.md`. `policy` is the PARC layer
 over it with the bundled `rbac.dl`.
 
+Design notes cover [conversational receipt explanations](docs/LLM-EXPLANATIONS.md) and
+a proposed [Anam agent record](docs/AGENT-RECORD.md). These describe optional follow-on work.
+
 ## Why it is built this way
 
 The theory, in four sentences. A policy is a value and a decision is a pure function of (policy,
 request), so the same inputs always give the same answer, the same proof and the same hash.
-Everything fails closed: a bad rule set is refused at `Load`, a bad request at `Decide`, and a
+Malformed input fails closed: a bad rule set is refused at `Load`, a bad request at `Decide`, and a
 bound crossed during evaluation is an error, never a partial answer. The engine knows no
 vocabulary, so the consumer owns what names mean and Shearline owns only that the derivation is
 right. Every refusal explains itself from the decision, not from a log, because a policy you cannot

@@ -2,14 +2,14 @@
 
 Asked for by: Matt (2026-11-07), from the question Shearline could not answer: "who may do X",
 "what may P do", the access matrix.
-Owner: shearline-lead. Status: DOING. Release: v0.6.0, additive (one method, three types;
+Owner: shearline-lead. Status: DONE (2026-11-07). Release: v0.6.0, additive (one method, three types;
 `Permitted` deprecated). Written in ASD-STE100. Drafted by Fable (read-only), built by Sol,
 reviewed by GPT per the owner’s 2026-11-07 instruction.
 
 ## Current disposition
 
 2026-11-07: ACCEPTED by Matt with the acceptance-12 performance exception below.
-Implementation and review are complete; merge and release remain pending. Acceptance 12
+Implementation and review are complete. PR #12 merged and v0.6.0 is published. Acceptance 12
 stays FAIL as measured. Its stop rule no longer blocks shipping Query: acceptance 12b's
 held-out results justify the intended workload. Earlier STOPPED entries below are historical.
 
@@ -574,3 +574,9 @@ follow-up. The three held-out runs above remain the performance evidence.
 
 - 2026-11-07: Matt instructed proceeding with merge and release on the accepted-performance
   basis. Release preparation targets v0.6.0; GitHub CI must pass before merge and tagging.
+
+- 2026-11-07: Completed delivery: [PR #12](https://github.com/mattjoyce/shearline/pull/12)
+  merged after CI passed at 1256bae2f33903edd9ff46a57ff7932492a8d197; the annotated
+  [v0.6.0 tag and release](https://github.com/mattjoyce/shearline/releases/tag/v0.6.0)
+  point to that merge. The accepted criterion-12 exception and caller-isolation limits
+  remain documented. Earlier pending/STOPPED entries are historical.

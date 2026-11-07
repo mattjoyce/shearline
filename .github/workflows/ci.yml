@@ -20,6 +20,7 @@ jobs:
           cache-dependency-path: |
             go.sum
             examples/logsvc/go.sum
+            examples/mcpgate/go.sum
       - name: gofmt
         run: test -z "$(gofmt -l .)"
       - name: vet
@@ -40,3 +41,19 @@ jobs:
           go vet ./...
           go test -race -count=1 ./...
           "$(go env GOPATH)/bin/gosec" -quiet ./...
+      - name: MCP gate (released Shearline)
+        working-directory: examples/mcpgate
+        run: |
+          go vet ./...
+          go test -race -shuffle=on -count=1 ./...
+          "$(go env GOPATH)/bin/gosec" -quiet ./...
+          go run ./cmd/mcpgate demo
+      - name: MCP gate (root checkout)
+        working-directory: examples/mcpgate
+        run: |
+          mcpgate_tmp=$(mktemp -d)
+          cp go.mod "$mcpgate_tmp/local.mod"
+          cp go.sum "$mcpgate_tmp/local.sum"
+          go mod edit -modfile="$mcpgate_tmp/local.mod" -replace=github.com/mattjoyce/shearline="$GITHUB_WORKSPACE"
+          go vet -modfile="$mcpgate_tmp/local.mod" ./...
+          go test -modfile="$mcpgate_tmp/local.mod" -race -shuffle=on -count=1 ./...
