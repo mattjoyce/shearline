@@ -192,7 +192,7 @@ under about 60 lines and files under about 400. CI runs all of it on every push.
 
 The current release is v0.6.0: v0.3.0 added `Config.Relations` for a policy's own base relations, v0.4.0 added `Decision.Steps`, `Decision.Bytes` and `Policy.Bounds()` for watching a decision's cost, v0.5.0 added `Compare` and `Config.Builtins` with package `policy/builtins`, and v0.6.0 adds `Query` for finite access matrices with proofs and context. For a v0.1 user the visible changes are those named under Status
 above: the engine is now tarski, its errors start `tarski:`, and large and small numbers print in
-full. Bundled rule-set hashes are unchanged. [CHANGELOG.md](CHANGELOG.md) lists each release.
+full. v0.6.0 changes the bundled rule-set hashes as documented in [CHANGELOG.md](CHANGELOG.md).
 
 ## Licence
 
