@@ -3,6 +3,14 @@
 Shearline is pre-1.0 and the API may change. Each entry says what a consumer of the module can see.
 Rule-set hashes and answer hashes are part of that: a change to either is listed here.
 
+## Unreleased
+
+- Add `examples/mcpgate`, a tools-only stdio MCP proxy with reviewed tool bindings,
+  per-call policy decisions, separate authorization/execution audit rows, and CI against
+  both its pinned Shearline release and the root checkout. The core module gains no dependency.
+- Add implementation briefs for deploygate and classifiergate, plus design notes on
+  conversational receipts and an optional Anam agent record. These are proposals, not implementations.
+
 ## [v0.6.0](https://github.com/mattjoyce/shearline/releases/tag/v0.6.0) - 2026-11-07
 
 [Compare v0.5.0...v0.6.0](https://github.com/mattjoyce/shearline/compare/v0.5.0...v0.6.0)
