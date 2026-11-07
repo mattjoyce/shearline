@@ -136,10 +136,11 @@ allow("ana", "read", "timeline/secret") is not derived
   guards: `in_net(IP, "10.0.0.0/8")`. Package `policy/builtins` has `InCIDR`, `Before` and
   `Within`. A refusal's why-not names the guard and the values it got. A builtin is code: the
   rule-set hash covers the rule that names it, not the function.
-- **List what a principal holds.** `Permitted(ctx, principal, action)` returns the grant prefixes
-  from the same rules that gate requests. It does not apply `deny`, which is per concrete resource,
-  and it carries no context, so it is discovery, not a gate: `Decide` every resource you then act on.
-  To list who may do something, loop over your principals and call `Decide`.
+- **Ask what is permissible.** `Query(ctx, Space{Principals, Actions, Resources, Contexts})`
+  returns the allowed triples with proofs, one bounded evaluation per explicit context bag.
+  `deny` applies. An unnamed resource is not denied: it was not asked.
+  Use `Decide` for one request and its why-not; Query requires the [keying contract](policy/query.go)
+  and checks proofs for foreign request facts. Negation can cause undetected extra or missing allows.
 - **Compare two policies.** `Compare(ctx, a, b, reqs)` lists each request where two policies
   decide differently, with both decisions' proofs or why-nots: review that a change only removes
   access, or find where two authors' rule sets disagree. It covers the requests you give, not
@@ -189,9 +190,9 @@ under about 60 lines and files under about 400. CI runs all of it on every push.
 
 ## Changes
 
-The current release is v0.5.0: v0.3.0 added `Config.Relations` for a policy's own base relations, v0.4.0 added `Decision.Steps`, `Decision.Bytes` and `Policy.Bounds()` for watching a decision's cost, and v0.5.0 adds `Compare` and `Config.Builtins` with package `policy/builtins`. For a v0.1 user the visible changes are those named under Status
+The current release is v0.6.0: v0.3.0 added `Config.Relations` for a policy's own base relations, v0.4.0 added `Decision.Steps`, `Decision.Bytes` and `Policy.Bounds()` for watching a decision's cost, v0.5.0 added `Compare` and `Config.Builtins` with package `policy/builtins`, and v0.6.0 adds `Query` for finite access matrices with proofs and context. For a v0.1 user the visible changes are those named under Status
 above: the engine is now tarski, its errors start `tarski:`, and large and small numbers print in
-full. Bundled rule-set hashes are unchanged. [CHANGELOG.md](CHANGELOG.md) lists each release.
+full. v0.6.0 changes the bundled rule-set hashes as documented in [CHANGELOG.md](CHANGELOG.md).
 
 ## Licence
 

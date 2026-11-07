@@ -1,5 +1,5 @@
 // Package hrpolicy is the HR chatbot's policy: Shearline's bundled rbac/1 rule set plus
-// hrchat/1, evaluated by Shearline over the organisation, the catalogue and the
+// hrchat/2, evaluated by Shearline over the organisation, the catalogue and the
 // entitlements, one request at a time.
 //
 // Shearline does the loading, the bounds and the deciding. This package declares what
@@ -23,12 +23,12 @@ import (
 //go:embed hrchat.dl
 var text string
 
-// Rules is hrchat/1, parsed from the embedded text. A broken asset is an error at Load,
+// Rules is hrchat/2, parsed from the embedded text. A broken asset is an error at Load,
 // so a bad policy never serves; TestLoad_RuleSetsAreShearlinesAndOurs holds it.
 func Rules() (tarski.RuleSet, error) {
-	s, err := tarski.NewRuleSet("hrchat", 1, text)
+	s, err := tarski.NewRuleSet("hrchat", 2, text)
 	if err != nil {
-		return tarski.RuleSet{}, fmt.Errorf("hrpolicy: bundled rule set hrchat/1: %w", err)
+		return tarski.RuleSet{}, fmt.Errorf("hrpolicy: bundled rule set hrchat/2: %w", err)
 	}
 	return s, nil
 }
@@ -37,7 +37,7 @@ func Rules() (tarski.RuleSet, error) {
 // broken policy or engine.
 var ErrRequest = policy.ErrRequest
 
-// Relations is every standing relation hrchat/1 reads beyond Shearline's PARC ones. Every
+// Relations is every standing relation hrchat/2 reads beyond Shearline's PARC ones. Every
 // column is a string, and Shearline refuses an empty one: a missing value, not a wildcard.
 func Relations() map[string]policy.Relation {
 	arities := map[string]int{
@@ -103,7 +103,7 @@ type Policy struct {
 	ids []string
 }
 
-// Load compiles rbac/1 and hrchat/1 and holds the organisation's, the catalogue's and the
+// Load compiles rbac/1 and hrchat/2 and holds the organisation's, the catalogue's and the
 // entitlements' facts. Any error is the operator's to fix before serving; a bad policy
 // never serves.
 func Load(standing ...[]tarski.Fact) (Policy, error) {

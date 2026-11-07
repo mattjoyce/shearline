@@ -203,9 +203,12 @@ with the action and level beside each tool.
   strings the app attests. Freshness is the app's judgment.
 - It cannot validate a value. Whether a new bank account is well formed, or is the user's
   own, is the store's check after the decision.
-- Shearline's `Permitted` lists grant prefixes for a principal and action; relationship
-  permits are per resource, so it lists nothing useful here. The matrix is computed by
-  deciding, which is what the README of Shearline says to do anyway.
+- Shearline's `Query` computes the matrix with one call per principal over named actions,
+  candidate resources and explicit context bags; `deny` applies. hrchat/2 keys attestations
+  by principal so multi-member Spaces also agree with Decide under the keying contract.
+  Query rejects proofs citing another Space member; negation can cause undetected extra
+  or missing allows. Use `Decide` on one tuple for its why-not. `Permitted` is deprecated
+  and will be removed in v0.7.0.
 
 ## What it taught Shearline
 

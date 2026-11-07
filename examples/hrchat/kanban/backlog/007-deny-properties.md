@@ -1,6 +1,7 @@
 # 007 Deny properties, checked over the request space
 
-Owner: hrchat. Needs: Shearline `Compare` (shearline card 009, built). Written in ASD-STE100.
+Owner: hrchat. Needs: Shearline `Query` (card 010) and `Compare` (card 009, built).
+Written in ASD-STE100.
 
 ## Why this is useful
 
@@ -12,12 +13,21 @@ request in the space we enumerate, and here is the why-not for each one we check
 ## Method
 
 Each property is a `deny/3` rule that says the thing that must never be allowed. Load the
-policy plus the property as a second policy. `Compare` the two over the request space. A diff
-is a request the policy allows and the property denies: a hole. No diff is evidence that the
-property holds over that space.
+policy plus the property as a second policy. Use `Query` on each over the same canonical
+Space, one call per principal, with all 27 actions, about ten candidates and explicit,
+deduplicated context bags. A tuple in the policy Matrix but absent in the property Matrix
+is a hole; merge sorted Allows, ignoring Proof for membership. Keep its policy proof and
+call `Decide` on the property side for its why-not. No hole is evidence over that Space.
 
-Because a property is a rule in the same language, a reviewer reads the property, not the test
-code. And because each diff carries both decisions, a hole explains itself.
+2026-11-07: card 010's acceptance 12 remains FAIL. Its post hoc 12b measures Query against
+only the requests this card needs, with duplicate bags/requests removed, confirming on
+seeds 2–4 that Query is not slower and no evaluation exceeds 25% of either bound.
+The keying contract is required on both policies. Query rejects foreign request leaves in
+proofs; negation can cause undetected extra or missing allows. Single-principal calls cannot
+expose a principal-axis leak, so keep multi-axis differential tests against Decide.
+
+Because a property is a rule in the same language, a reviewer reads the property, not the
+test code. Each hole carries its proof and why-not.
 
 ## The properties
 
@@ -65,7 +75,8 @@ the full space.
 1. `hrpolicy/properties.dl`: the properties, each with its ASD-STE100 sentence as the comment
    above it. One rule set `hrchat-properties/1`.
 2. `hrpolicy/properties_test.go`: loads the policy, loads the policy plus the properties, builds
-   the request space, runs `Compare`, fails on any diff with `Explain` of both sides.
+   the request space, runs `Query` on each side and merges Allows, then uses `Decide`
+   for each hole's why-not. Fails on a hole with both sides' evidence.
 3. `cmd/hrchat properties [--full]`: the same, as a command, printing the count checked, the
    time, and each diff. The README's assurance section cites its output.
 4. README: replace "39 scenarios" with the two numbers (scenarios, properties × requests).

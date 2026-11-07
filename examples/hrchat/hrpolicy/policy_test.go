@@ -26,7 +26,7 @@ func load(t *testing.T) (hrpolicy.Policy, *org.Org) {
 func TestLoad_RuleSetsAreShearlinesAndOurs(t *testing.T) {
 	p, _ := load(t)
 	ids := p.RuleSets()
-	if len(ids) != 2 || !strings.HasPrefix(ids[0], "rbac/1 sha256:") || !strings.HasPrefix(ids[1], "hrchat/1 sha256:") {
+	if len(ids) != 2 || !strings.HasPrefix(ids[0], "rbac/1 sha256:") || !strings.HasPrefix(ids[1], "hrchat/2 sha256:") {
 		t.Fatalf("rule sets %v", ids)
 	}
 }
